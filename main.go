@@ -154,6 +154,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		// Private command requested from a channel/server
 		_, err := discordSend(discord, channelID, "Private commands are not allowed in public channels.", true)
 		logErrorTS(debugTag, err)
+		return
 	}
 	cmdArgs = cmdArgs[1:]
 	numArgs := len(cmdArgs)
@@ -382,7 +383,7 @@ var supportedCommands = map[string]Command{
 		Example:     "!trades halo eth 10",
 	},
 	"orders": Command{
-		Description: "Get HaloDEX orders by user address",
+		Description: "Get HaloDEX orders by user address. \nNot allowed in public channels.",
 		IsPublic:    false,
 		Arguments:   "<quote-ticerk> <base-ticker> <limit> <address>",
 		Example:     "!orders halo eth 10 0x1234567890abcdef",

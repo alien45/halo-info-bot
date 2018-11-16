@@ -161,6 +161,6 @@ func (ticker *CMCTicker) Format() string {
 		ticker.Quote["USD"].PercentChange24H,
 		ConvertNumber(ticker.Quote["USD"].Volume24H, 2),
 		ConvertNumber(ticker.Quote["USD"].MarketCap, 2),
-		ticker.LastUpdated.String(),
+		FormatTime(ticker.LastUpdated.UTC()),
 	)
 }

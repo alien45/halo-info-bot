@@ -5,7 +5,11 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 )
+
+// MonthsShort list of short month names
+var MonthsShort = []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 
 // FillOrLimit fill string with specific filler
 func FillOrLimit(str, filler string, max int) string {
@@ -50,4 +54,9 @@ func ConvertNumber(num float64, precision int) string {
 		return fmt.Sprintf("%f %s", num/divideBy, name)
 	}
 	return fmt.Sprintf("%."+fmt.Sprint(precision)+"f %s", num/divideBy, name)
+}
+
+// FormatTime formats time to string
+func FormatTime(t time.Time) string {
+	return fmt.Sprintf("%02d:%02d:%02d %02d-%s\n", t.Hour(), t.Minute(), t.Second(), t.Day(), MonthsShort[t.Month()])
 }

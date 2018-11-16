@@ -118,7 +118,6 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 	}
 	s = "diff\n    Price        | Amount      | Time     DD-MM\n" + dashLine
 	for _, trade := range trades {
-		t := trade.Time
 		if trade.IsBuy {
 			s += "+ | "
 		} else {
@@ -126,7 +125,7 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 		}
 		s += FillOrLimit(fmt.Sprintf("%.8f", trade.Price), " ", 12) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.2f", trade.Amount), " ", 7) + "     | "
-		s += fmt.Sprintf("%02d:%02d:%02d %02d-%02d\n", t.Hour(), t.Minute(), t.Second(), t.Day(), t.Month()) + dashLine
+		s += FormatTime(trade.Time.UTC()) + dashLine
 	}
 	return
 }
@@ -237,7 +236,7 @@ func (ticker *Ticker) Format() string {
 		ConvertNumber(ticker.TwoFourQuoteVolume, 2),
 		FillOrLimit("USD", " ", tickerMaxLength),
 		ConvertNumber(ticker.TwoFourVolumeUSD, 2),
-		ticker.LastUpdated.String(),
+		FormatTime(ticker.LastUpdated.UTC()),
 	)
 }
 
@@ -260,7 +259,6 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	}
 	s = "diff\n    Price      | Amount | Filled | Time     DD-MM\n" + dashLine
 	for _, order := range orders {
-		t := order.Time
 		if order.IsBuy {
 			s += "+ | "
 		} else {
@@ -269,7 +267,7 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 		s += FillOrLimit(fmt.Sprintf("%.8f", order.Price), " ", 10) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.4f", order.Amount), " ", 6) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.2f%%", order.FilledPercent), " ", 6) + " | "
-		s += fmt.Sprintf("%02d:%02d:%02d %02d-%02d\n", t.Hour(), t.Minute(), t.Second(), t.Day(), t.Month()) + dashLine
+		s += FormatTime(order.Time.UTC()) + dashLine
 	}
 	return
 }
@@ -317,22 +315,19 @@ func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []
 		}
 		amtGet := orders[i].AmountGet
 		amtGive := orders[i].AmountGive
-		orders[i].IsBuy = strings.ToLower(orders[i].TokenGet) == strings.ToLower(baseAddr)
+		orders[i].IsBuy = strings.ToLower(orders[i].TokenGet) == strings.ToLower(quoteAddr)
 		orders[i].Time = time.Unix(0, orders[i].TimeEpochNano)
-		if orders[i].IsBuy {
-			// buy
+		orders[i].FilledPercent = orders[i].FilledAmount / amtGet * 100
+		if !orders[i].IsBuy {
+			// sell
 			orders[i].Amount = amtGet / 1e18
 			orders[i].Price = amtGet / amtGive
 			continue
 		}
 
-		// sell
+		// buy
 		orders[i].Amount = amtGet / 1e18
 		orders[i].Price = amtGive / amtGet
-		orders[i].FilledPercent = orders[i].FilledAmount / amtGet * 100
-		if i == 0 {
-			fmt.Printf("%+v\n amountGive:%f \namountGet:%f \n Price: %f\n", orders[i], amtGive, amtGet, amtGive/amtGet)
-		}
 	}
 	return
 }
