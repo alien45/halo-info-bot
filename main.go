@@ -26,7 +26,9 @@ var (
 		"eth": {"h-eth": "0x70a41917365E772E41D404B3F7870CA8919b4fBe"}, // Ethereum address for H-ETH token
 	}
 	// Commands names that are not allowed in the public chats. Key: command, value: unused.
-	privateCmds = map[string]string{}
+	privateCmds  = map[string]string{}
+	helpTextLong string
+	helpText     string
 )
 
 // Config describes data that's required to run the application
@@ -99,6 +101,8 @@ func main() {
 	etherscan.Init(config.EtherscanREST, config.EtherscanAPIKey)
 	explorer.Init(config.ExplorerREST, config.MainnetGQL)
 
+	helpTextLong, helpText = generateHelpText()
+
 	// Connect to discord as a bot
 	discord, err := discordgo.New("Bot " + token)
 	panicIf(err, "error creating discord session")
@@ -142,21 +146,27 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 	cmdArgs := strings.Split(message.Content, " ")
 	command := strings.TrimPrefix(cmdArgs[0], config.CommandPrefix)
-	cmdArgs = cmdArgs[1:]
-	numArgs := len(cmdArgs)
 	if _, found := supportedCommands[command]; !found {
 		return
 	}
-
 	if _, found := privateCmds[command]; found && !isPrivateMsg {
 		// Private command requested from a channel/server
 		_, err := discordSend(discord, channelID, "Private commands are not allowed in public channels.", true)
 		logErrorTS(debugTag, err)
 	}
+	cmdArgs = cmdArgs[1:]
+	numArgs := len(cmdArgs)
 
 	debugTag = "cmd] [" + command
 	logTS(debugTag, fmt.Sprintf("Author: %s, Message: %s\n", message.Author, message.Content))
 	switch strings.ToLower(command) {
+	case "help":
+		text := "css\n" + helpText
+		if numArgs >= 1 && cmdArgs[0] == "full" {
+			text = helpTextLong
+		}
+		discordSend(discord, channelID, text, true)
+		break
 	case "cmc":
 		// Handle CoinMarketCap related commands
 		nameOrSymbol := strings.ToUpper(strings.Join(cmdArgs, " "))
@@ -203,9 +213,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		}
 		_, err = discordSend(discord, channelID, fmt.Sprintf("Balance: %.8f", balance), false)
 		logErrorTS(debugTag, err)
-		break
-	case "etherscan":
-		discordSend(discord, channelID, "Not implemented", true)
 		break
 	case "ticker":
 		symbolQuote := "HALO"
@@ -364,6 +371,10 @@ type Command struct {
 
 // TODO: Use json config file or leave as is??
 var supportedCommands = map[string]Command{
+	"help": Command{
+		Description: "Prints this message",
+		IsPublic:    true,
+	},
 	"trades": Command{
 		Description: "Recent trades from HaloDEX",
 		IsPublic:    true,
@@ -371,15 +382,23 @@ var supportedCommands = map[string]Command{
 			"[quote-symbol]": "Symbol of the quote token",
 			"[base-symbol]":  "Symbol of the base token",
 			"[limit]":        "Number of recent trades",
-			"[timezone]":     "(not implemented yet) Format the trade timestamp in a specific timezone. Must be a valid number: between -12 to +12.",
+			//"[timezone]":     "(not implemented yet) Format the trade timestamp in a specific timezone. Must be a valid number: between -12 to +12.",
 		},
+		Example: "!trades halo eth 10",
 	},
-	"trades-color": Command{
-		Description: "Color-coded trades from HaloDEX. Red = Sell, Green = Buy. Same arguments as 'trades' command.",
-		IsPublic:    true,
+	"orders": Command{
+		Description: "Get HaloDEX orders by user address",
+		IsPublic:    false,
+		Arguments: map[string]string{
+			"[quote-symbol]": "Symbol of the quote token",
+			"[base-symbol]":  "Symbol of the base token",
+			"[limit]":        "Number of recent trades",
+			"<address>":      "Halo chain address.",
+		},
+		Example: "!orders halo eth 10 0x1234567890abcdef",
 	},
 	"ticker": Command{
-		Description: "Available ticker(s) on HaloDEX.",
+		Description: "Get ticker information from HaloDEX.",
 		IsPublic:    true,
 		Arguments: map[string]string{
 			"[quote-symbol]": "Symbol of the quote token",
@@ -393,34 +412,47 @@ var supportedCommands = map[string]Command{
 		Arguments: map[string]string{
 			"<symbol>": "Symbol of the coin/token to fetch",
 		},
+		Example: "!cmc btc",
 	},
 	"balance": Command{
 		Description: "Halo address balance",
 		IsPublic:    true,
 		Arguments: map[string]string{
-			"<address>": "required.",
+			"<address>":       "Check address balance. Reserved keywords accepted: reward-pool, charity, h-eth",
+			"[ticker_symbol]": "If currency is other than Halo. Supported currencies: ETH",
 		},
+		Example: "!balance 0x1234567890abcdef",
 	},
-	"mn": Command{
-		Description: "Lists masternodes for specified address",
-		IsPublic:    true,
-		Arguments: map[string]string{
-			"<address>": "required.",
-		},
-	},
-	"etherscan": Command{
-		Description: "Get Ethereum address balance",
-		IsPublic:    true,
-		Arguments: map[string]string{
-			"<address>": "required.",
-		},
-	},
-	"orders": Command{
-		Description: "Get HaloDEX orders by user address",
-		IsPublic:    false,
-		Arguments: map[string]string{
-			"<address>": "Halo chain address.",
-			//"[pair]" : "token pair",
-		},
-	},
+	// "mn": Command{
+	// 	Description: "Lists masternodes for specified address",
+	// 	IsPublic:    true,
+	// 	Arguments: map[string]string{
+	// 		"<address>": "required.",
+	// 	},
+	// },
+}
+
+func generateHelpText() (s, short string) {
+	for cmd, details := range supportedCommands {
+		args := ""
+		argsDesc := ""
+		for arg, desc := range details.Arguments {
+			if arg == "help" {
+				continue
+			}
+			argsDesc += fmt.Sprintf("%s : %s\n", arg, desc)
+			args += " " + arg
+		}
+		if argsDesc != "" {
+			argsDesc = fmt.Sprintf("Arguments:```%s```", argsDesc)
+		}
+		s += fmt.Sprintf("**%s %s:** %s\n%s", cmd, args, details.Description, argsDesc)
+
+		if details.Example != "" {
+			s += fmt.Sprintf("Example:```%s```", details.Example)
+		}
+
+		short += fmt.Sprintf("!%s %s: \n  - %s\n\n", cmd, args, details.Description)
+	}
+	return
 }

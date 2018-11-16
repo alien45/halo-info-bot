@@ -42,6 +42,7 @@ func (dex *DEX) Init(gqlURL string, publicURL string) {
 	dex.TokenAddresses = map[string]Token{
 		"eth":  Token{HaloChainAddress: "0xd314d564c36c1b9fbbf6b440122f84da9a551029"},
 		"halo": Token{HaloChainAddress: "0x0000000000000000000000000000000000000000"},
+		"vet":  Token{HaloChainAddress: "0x280750ccb7554faec2079e8d8719515d6decdc84"},
 	}
 	return
 }
@@ -237,7 +238,7 @@ func (ticker *Ticker) Format() string {
 		ConvertNumber(ticker.TwoFourQuoteVolume, 2),
 		FillOrLimit("USD", " ", tickerMaxLength),
 		ConvertNumber(ticker.TwoFourVolumeUSD, 2),
-		ticker.LastUpdated.UTC().String(),
+		ticker.LastUpdated.String(),
 	)
 }
 
