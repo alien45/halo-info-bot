@@ -242,11 +242,11 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	case "orders":
 		fallthrough
 	case "trades":
-		//TODO: swap base-quote if wrong direction provided. API does not handle this properly. Cache available pairs from DEX for this.
-		//TODO: add argument for timezone or allow user to save timezone?
+		//TODO: swap base-quote if wrong direction provided. Cache available pairs from DEX for this.
+		//TODO: add argument for timezone or allow user to save timezone??
 		addrs := dex.TokenAddresses
-		quoteToken := addrs["halo"].HaloChainAddress
-		baseToken := addrs["eth"].HaloChainAddress
+		quoteAddr := addrs["halo"].HaloChainAddress
+		baseAddr := addrs["eth"].HaloChainAddress
 		limit := "10"
 		if numArgs >= 2 {
 			// Token symbol supplied
@@ -257,8 +257,10 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 				logErrorTS(debugTag, err)
 				return
 			}
-			quoteToken = quoteTicker.HaloChainAddress
-			baseToken = baseTicker.HaloChainAddress
+			quoteAddr = quoteTicker.HaloChainAddress
+			baseAddr = baseTicker.HaloChainAddress
+			logTS(debugTag, fmt.Sprintf("Quote Ticker: %s (%s),\n Base Ticker: %s (%s)",
+				cmdArgs[0], quoteAddr, cmdArgs[1], baseAddr))
 		}
 		if numArgs >= 3 {
 			if l, err := strconv.ParseInt(cmdArgs[2], 10, 32); err == nil && l <= 50 {
@@ -272,12 +274,12 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 				discordSend(discord, channelID, "Address required.", true)
 				break
 			}
-			orders, errO := dex.GetOrders(quoteToken, baseToken, limit, cmdArgs[3])
+			orders, errO := dex.GetOrders(quoteAddr, baseAddr, limit, cmdArgs[3])
 			err = errO
 			logErrorTS(debugTag, err)
 			dataStr = dex.FormatOrders(orders)
 		} else {
-			trades, errT := dex.GetTrades(quoteToken, baseToken, limit)
+			trades, errT := dex.GetTrades(quoteAddr, baseAddr, limit)
 			err = errT
 			logErrorTS(debugTag, err)
 			dataStr = dex.FormatTrades(trades)

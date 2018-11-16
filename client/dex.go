@@ -53,7 +53,7 @@ func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, er
 	gqlQueryStr := `{
 		"operationName": "trades",
 		"query": "query trades($baseAddress: String!, $quoteAddress: String!) { ` +
-		`trades(where: {tokenGet: $baseAddress, tokenGive: $quoteAddress}, orderBy: blockTimestamp_DESC, first: ` +
+		`trades(where: {OR: [{tokenGet: $baseAddress, tokenGive: $quoteAddress}, {tokenGet: $quoteAddress, tokenGive: $baseAddress}]}, orderBy: blockTimestamp_DESC, first: ` +
 		limit + `) {id tokenGet tokenGive amountGet amountGive blockTimestamp __typename}}",
 		"variables": {
 			"baseAddress" : "` + baseAddr + `",
@@ -79,7 +79,6 @@ func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, er
 	}
 
 	trades = tradesResult["data"]["trades"]
-
 	// Process received data to extract IsBuy, Price and Amount
 	for i := 0; i < len(trades); i++ {
 		trades[i].IsBuy = strings.ToLower(trades[i].TokenGet) == strings.ToLower(baseAddr)
