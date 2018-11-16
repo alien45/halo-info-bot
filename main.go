@@ -20,15 +20,16 @@ var (
 	etherscan       client.Etherscan
 	addressKeywords = map[string]map[string]string{
 		"halo": {
+			// Halo Masternode reward pool
 			"reward-pool": "0xd674dd3cdf07139ffda85b8589f0e2ca600f996e",
-			"charity":     "0xaefaffa2272098b4ab6f9a87a76f25944aee746d",
-		}, // Halo Masternode reward pool
+			// Charity address by the Halo Platform community
+			"charity": "0xaefaffa2272098b4ab6f9a87a76f25944aee746d",
+		},
 		"eth": {"h-eth": "0x70a41917365E772E41D404B3F7870CA8919b4fBe"}, // Ethereum address for H-ETH token
 	}
 	// Commands names that are not allowed in the public chats. Key: command, value: unused.
-	privateCmds  = map[string]string{}
-	helpTextLong string
-	helpText     string
+	privateCmds = map[string]string{}
+	helpText    string
 )
 
 // Config describes data that's required to run the application
@@ -101,7 +102,7 @@ func main() {
 	etherscan.Init(config.EtherscanREST, config.EtherscanAPIKey)
 	explorer.Init(config.ExplorerREST, config.MainnetGQL)
 
-	helpTextLong, helpText = generateHelpText()
+	helpText = generateHelpText()
 
 	// Connect to discord as a bot
 	discord, err := discordgo.New("Bot " + token)
@@ -162,9 +163,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	switch strings.ToLower(command) {
 	case "help":
 		text := "css\n" + helpText
-		if numArgs >= 1 && cmdArgs[0] == "full" {
-			text = helpTextLong
-		}
 		discordSend(discord, channelID, text, true)
 		break
 	case "cmc":
@@ -366,7 +364,7 @@ func logErrorTS(debugTag string, err error) (hasError bool) {
 // Command describes bot supported command
 type Command struct {
 	Description string
-	Arguments   map[string]string // key : argument name, value: argument description
+	Arguments   string
 	IsPublic    bool
 	Example     string
 }
@@ -380,50 +378,32 @@ var supportedCommands = map[string]Command{
 	"trades": Command{
 		Description: "Recent trades from HaloDEX",
 		IsPublic:    true,
-		Arguments: map[string]string{
-			"[quote-symbol]": "Symbol of the quote token",
-			"[base-symbol]":  "Symbol of the base token",
-			"[limit]":        "Number of recent trades",
-			//"[timezone]":     "(not implemented yet) Format the trade timestamp in a specific timezone. Must be a valid number: between -12 to +12.",
-		},
-		Example: "!trades halo eth 10",
+		Arguments:   "[quote-symbol] [base-symbol] [limit]",
+		Example:     "!trades halo eth 10",
 	},
 	"orders": Command{
 		Description: "Get HaloDEX orders by user address",
 		IsPublic:    false,
-		Arguments: map[string]string{
-			"[quote-symbol]": "Symbol of the quote token",
-			"[base-symbol]":  "Symbol of the base token",
-			"[limit]":        "Number of recent trades",
-			"<address>":      "Halo chain address.",
-		},
-		Example: "!orders halo eth 10 0x1234567890abcdef",
+		Arguments:   "<quote-ticerk> <base-ticker> <limit> <address>",
+		Example:     "!orders halo eth 10 0x1234567890abcdef",
 	},
 	"ticker": Command{
 		Description: "Get ticker information from HaloDEX.",
 		IsPublic:    true,
-		Arguments: map[string]string{
-			"[quote-symbol]": "Symbol of the quote token",
-			"[base-symbol]":  "Symbol of the base token",
-		},
-		Example: "!ticker halo eth",
+		Arguments:   "<quote-ticker> <base-ticker>",
+		Example:     "!ticker halo eth",
 	},
 	"cmc": Command{
 		Description: "Fetch CoinMarketCap tickers",
 		IsPublic:    true,
-		Arguments: map[string]string{
-			"<symbol>": "Symbol of the coin/token to fetch",
-		},
-		Example: "!cmc btc",
+		Arguments:   "<symbol>",
+		Example:     "!cmc btc",
 	},
 	"balance": Command{
 		Description: "Halo address balance",
 		IsPublic:    true,
-		Arguments: map[string]string{
-			"<address>":       "Check address balance. Reserved keywords accepted: reward-pool, charity, h-eth",
-			"[ticker_symbol]": "If currency is other than Halo. Supported currencies: ETH",
-		},
-		Example: "!balance 0x1234567890abcdef",
+		Arguments:   "<address> [ticker]",
+		Example:     "!balance 0x1234567890abcdef",
 	},
 	// "mn": Command{
 	// 	Description: "Lists masternodes for specified address",
@@ -431,30 +411,17 @@ var supportedCommands = map[string]Command{
 	// 	Arguments: map[string]string{
 	// 		"<address>": "required.",
 	// 	},
+	// ArgumentsShort: "<address>",
 	// },
 }
 
-func generateHelpText() (s, short string) {
+func generateHelpText() (s string) {
 	for cmd, details := range supportedCommands {
-		args := ""
-		argsDesc := ""
-		for arg, desc := range details.Arguments {
-			if arg == "help" {
-				continue
-			}
-			argsDesc += fmt.Sprintf("%s : %s\n", arg, desc)
-			args += " " + arg
-		}
-		if argsDesc != "" {
-			argsDesc = fmt.Sprintf("Arguments:```%s```", argsDesc)
-		}
-		s += fmt.Sprintf("**%s %s:** %s\n%s", cmd, args, details.Description, argsDesc)
-
+		s += fmt.Sprintf("!%s %s: \n  - %s \n", cmd, details.Arguments, details.Description)
 		if details.Example != "" {
-			s += fmt.Sprintf("Example:```%s```", details.Example)
+			s += fmt.Sprintf("- Example: %s\n", details.Example)
 		}
-
-		short += fmt.Sprintf("!%s %s: \n  - %s\n\n", cmd, args, details.Description)
+		s += "\n"
 	}
 	return
 }
