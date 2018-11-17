@@ -58,5 +58,5 @@ func ConvertNumber(num float64, precision int) string {
 
 // FormatTime formats time to string
 func FormatTime(t time.Time) string {
-	return fmt.Sprintf("%02d:%02d:%02d %02d-%s\n", t.Hour(), t.Minute(), t.Second(), t.Day(), MonthsShort[t.Month()])
+	return fmt.Sprintf("%02d:%02d:%02d %02d-%s\n", t.Hour(), t.Minute(), t.Second(), t.Day(), MonthsShort[t.Month()-1])
 }
