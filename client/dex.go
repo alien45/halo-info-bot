@@ -3,30 +3,36 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
 
-const dashLine = "--------------------------------------------------\n"
-
 // DEX struct handles all API requests relating to HaloDEX
 type DEX struct {
-	GQLURL    string
+	// HaloDEX GraphQL API URL
+	GQLURL string
+	// HaloDEX public REST API URL
 	PublicURL string
 
 	// Smart Contract addresses of the tokens available on the HaloDEX
-	TokenAddresses map[string]Token
+	CachedTokens map[string]Token
+	// Cache expiration time in minutes.
+	CachedTokenExpireMins float64
+	// Cached Token last updated timestamp
+	CachedTokenLastUpdated time.Time
 
 	// Container for Ticker caching
 	// key: pair (eg: halo/eth), value: Ticker
 	CachedTickers map[string]Ticker
-
-	// Cache duration in minutes
-	CacheExpireMins  float64
-	CacheLastUpdated time.Time
+	// Cache expiration time in minutes.
+	CachedTickerExpireMins float64
+	// Cached Ticker last updated timestamp
+	CachedTickerLastUpdated time.Time
 }
 
 // Init instantiates HaloDEXHelper struct
@@ -37,13 +43,8 @@ type DEX struct {
 func (dex *DEX) Init(gqlURL string, publicURL string) {
 	dex.GQLURL = gqlURL
 	dex.PublicURL = publicURL
-	dex.CacheExpireMins = 3
-	// TODO: retrieve & cache token address from HaloDEX API
-	dex.TokenAddresses = map[string]Token{
-		"eth":  Token{HaloChainAddress: "0xd314d564c36c1b9fbbf6b440122f84da9a551029"},
-		"halo": Token{HaloChainAddress: "0x0000000000000000000000000000000000000000"},
-		"vet":  Token{HaloChainAddress: "0x280750ccb7554faec2079e8d8719515d6decdc84"},
-	}
+	dex.CachedTickerExpireMins = 3
+	dex.CachedTokenExpireMins = 720 // Update twice everyday
 	return
 }
 
@@ -61,12 +62,12 @@ func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, er
 		}
 	}`
 
-	client := &http.Client{}
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
 	}
 	request.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
 		return
@@ -125,7 +126,7 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 		}
 		s += FillOrLimit(fmt.Sprintf("%.8f", trade.Price), " ", 12) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.2f", trade.Amount), " ", 7) + "     | "
-		s += FormatTime(trade.Time.UTC()) + dashLine
+		s += FormatTimeReverse(trade.Time.UTC()) + "\n" + dashLine
 	}
 	return
 }
@@ -163,19 +164,21 @@ type Ticker struct {
 func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quoteTokenSupply float64) (ticker Ticker, err error) {
 	// Use cache if available and not expired
 	cachedTicker, available := dex.CachedTickers[symbolQuote+"/"+symbolBase]
-	if available && time.Now().Sub(dex.CacheLastUpdated).Minutes() < dex.CacheExpireMins {
-		fmt.Println("Using cached tickers")
+	if available && time.Now().Sub(dex.CachedTickerLastUpdated).Minutes() < dex.CachedTickerExpireMins {
+		fmt.Println(NowTS(), " Using cached tickers")
 		return cachedTicker, nil
 	}
 
 	tickerURL := fmt.Sprintf("%s/single/%s/%s", dex.PublicURL, symbolQuote, symbolBase)
-	fmt.Println(time.Now().UTC(), "[GetTicker] ticker URL: ", tickerURL)
+	fmt.Println(NowTS(), " [GetTicker] ticker URL: ", tickerURL)
+
 	response := &(http.Response{})
 	response, err = http.Get(tickerURL)
 	if err != nil {
 		return
 	}
 	body, err := ioutil.ReadAll(response.Body)
+	// API returns empty Array if not found!!
 	if response.StatusCode != 200 || string(body) == "[]" {
 		err = fmt.Errorf("Pair %s/%s not available on HaloDEX", symbolQuote, symbolBase)
 		return
@@ -202,27 +205,24 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 	ticker.TwoFourVolumeUSD = ticker.TwoFourQuoteVolume * ticker.LastPriceUSD
 	ticker.QuoteTokenMarketCap = ticker.QuoteTokenSupply * ticker.LastPriceUSD
 	ticker.LastUpdated = time.Now()
-	dex.CacheLastUpdated = ticker.LastUpdated
+	dex.CachedTickerLastUpdated = ticker.LastUpdated
 
 	return
 }
 
 // Format formats important ticker values into a string
 func (ticker *Ticker) Format() string {
-	tickerMaxLength := len(ticker.BaseTicker)
-	if len(ticker.BaseTicker) < len(ticker.QuoteTicker) {
-		tickerMaxLength = len(ticker.QuoteTicker)
-	}
-	return fmt.Sprintf("Pair          : %s\n"+
+	return fmt.Sprintf(""+
+		"Pair          : %s\n"+
 		"Last Price    : %.8f | $%.4f\n"+
 		"24H High      : %.8f | $%.4f\n"+
 		"24H Low       : %.8f | $%.4f\n"+
 		"Total Supply  : %s\n"+
 		"Market Cap USD: $%s\n"+
 		"24H Volume    :\n"+
-		"  -%s : %s\n"+ // Base Bolume
-		"  -%s : %s\n"+ // Quote Volume
-		"  -%s : $%s\n"+ // USD Volume
+		"      -%s : %s\n"+ // Base Bolume
+		"      -%s : %s\n"+ // Quote Volume
+		"      -%s : $%s\n"+ // USD Volume
 		"Last Updated  : %v\n",
 		ticker.Pair,
 		ticker.Last, ticker.LastPriceUSD,
@@ -230,13 +230,13 @@ func (ticker *Ticker) Format() string {
 		ticker.TwoFourBid, ticker.TwoFourBidUSD,
 		ConvertNumber(ticker.QuoteTokenSupply, 2),
 		ConvertNumber(ticker.QuoteTokenMarketCap, 2),
-		FillOrLimit(ticker.BaseTicker, " ", tickerMaxLength),
+		FillOrLimit(ticker.BaseTicker, " ", 6),
 		ConvertNumber(ticker.TwoFourBaseVolume, 2),
-		FillOrLimit(ticker.QuoteTicker, " ", tickerMaxLength),
+		FillOrLimit(ticker.QuoteTicker, " ", 6),
 		ConvertNumber(ticker.TwoFourQuoteVolume, 2),
-		FillOrLimit("USD", " ", tickerMaxLength),
+		FillOrLimit("USD", " ", 6),
 		ConvertNumber(ticker.TwoFourVolumeUSD, 2),
-		FormatTime(ticker.LastUpdated.UTC()),
+		FormatTimeReverse(ticker.LastUpdated.UTC()),
 	)
 }
 
@@ -267,14 +267,14 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 		s += FillOrLimit(fmt.Sprintf("%.8f", order.Price), " ", 10) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.4f", order.Amount), " ", 6) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.2f%%", order.FilledPercent), " ", 6) + " | "
-		s += FormatTime(order.Time.UTC()) + dashLine
+		s += FormatTimeReverse(order.Time.UTC()) + "\n" + dashLine
 	}
 	return
 }
 
 // GetOrders retrieves HaloDEX orders by user address
 func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []Order, err error) {
-	fmt.Println("GetOrders(), quote: ", quoteAddr, " base: ", baseAddr, " address: ", address)
+	fmt.Println(NowTS(), " [GetOrders], quote: ", quoteAddr, " base: ", baseAddr, " address: ", address)
 	//quick and dirty GQL query
 	gqlQueryStr := `{
 		"operationName": "users",
@@ -289,12 +289,12 @@ func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []
 		  }
 		}`
 
-	client := &http.Client{}
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
 	}
 	request.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
 		return
@@ -307,11 +307,11 @@ func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []
 	}
 
 	orders = ordersResult["data"]["orders"]
-	fmt.Println("Orders received: ", len(orders))
+	fmt.Println(NowTS(), " [GetOrder] Orders received: ", len(orders))
 	// Process received data to extract IsBuy, Price and Amount
 	for i := 0; i < len(orders); i++ {
 		if i == 0 {
-			fmt.Printf("%+v\n", orders[i])
+			fmt.Printf("%s [GetOrder] %+v\n", NowTS(), orders[i])
 		}
 		amtGet := orders[i].AmountGet
 		amtGive := orders[i].AmountGive
@@ -332,25 +332,146 @@ func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []
 	return
 }
 
-//Token TODO:
+// Token describes data of available tokens on the HaloDEX
 type Token struct {
-	//"number": 0,
-	//"type": "BASE",
-	//"baseChain": "Ethereum",
-	//"baseChainAddress": "0x70a41917365E772E41D404B3F7870CA8919b4fBe",
-	HaloChainAddress string //"haloAddress": "0xd314d564c36c1b9fbbf6b440122f84da9a551029",
-	Ticker           string //"ticker": "ETH",
-	// Name             string //"name": "Ethereum",
-	// Decimals         int    //"decimals": 18,
-	//"__typename": "SupportedToken"
+	Number           int64  `json:"number"`
+	Type             string `json:"type"` //"BASE" & "QUOTE"?
+	BaseChain        string `json:"baseChain"`
+	BaseChainAddress string `json:"baseChainAddress"`
+	HaloChainAddress string `json:"haloAddress"`
+	Ticker           string `json:"ticker"`
+	Name             string `json:"name"`
+	Decimals         int64  `json:"decimals"` // number of decimals supported
 }
 
 // Format formats Token
 func (t *Token) Format() string {
-	return fmt.Sprintf("%s", "Not implemented")
+	return fmt.Sprintf(""+
+		"Name         : %s\n"+
+		"Ticker       : %s\n"+
+		"Type         : %s\n"+
+		"Base Chain   : %s\n"+
+		"Base Address : %s\n"+
+		"Halo Address : %s\n"+
+		"Decimals     : %d\n",
+		t.Name, t.Ticker, t.Type, t.BaseChain, t.BaseChainAddress, t.HaloChainAddress, t.Decimals)
 }
 
-// GetTokens ....
-func (dex *DEX) GetTokens() {
+// GetTokenList returns a string with all supported tokens on HaloDEX line by line
+func (dex *DEX) GetTokenList() (s string, err error) {
+	tokens, err := dex.GetTokens()
+	if len(tokens) == 0 {
+		s = "Token not found/available"
+		return
+	}
+	// List token names (with ticker) only
+	keys := []string{}
+	for ticker := range tokens {
+		keys = append(keys, ticker)
+	}
+	sort.Strings(keys)
+	s += "Supported tokens: \n"
+	for i := 0; i < len(keys); i++ {
+		token := tokens[keys[i]]
+		s += fmt.Sprintf("%s - %s\n", token.Name, token.Ticker)
+	}
+	return
+}
 
+// GetTokens caches and returns HaloDEX tokens.
+func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
+	if len(dex.CachedTokens) > 0 &&
+		time.Now().Sub(dex.CachedTokenLastUpdated).Minutes() < dex.CachedTokenExpireMins {
+		tokens = dex.CachedTokens
+		fmt.Println(NowTS(), "using cached tokens.")
+		return
+	}
+	fmt.Println(NowTS(), "updating tokens' cache")
+	gqlQueryStr := `{"query":"{ supportedTokens { number type baseChain baseChainAddress haloAddress ticker name decimals }}"}`
+	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
+	if err != nil {
+		fmt.Println("request error", err)
+		return
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return
+	}
+
+	result := struct {
+		Data struct {
+			SupportedTokens []Token `json:"supportedTokens"`
+		} `json:"data"`
+	}{}
+	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		return
+	}
+	dex.CachedTokens = map[string]Token{}
+	for i, token := range result.Data.SupportedTokens {
+		dex.CachedTokens[strings.ToLower(token.Ticker)] = result.Data.SupportedTokens[i]
+	}
+	tokens = dex.CachedTokens
+	dex.CachedTokenLastUpdated = time.Now()
+	return
+}
+
+// GetBalance retrieves DEX account balance by user addresses and ticker
+func (dex *DEX) GetBalance(userAddress, tickerStr string) (balance, available float64, err error) {
+	ticker, supported := dex.CachedTokens[tickerStr]
+	if !supported {
+		err = errors.New("Invalid or unsupported token")
+		return
+	}
+
+	gqlQueryStr := `{
+		"operationName": "balances",
+		"query":"query balances($userAddress: String!, $tokenAddress: String!) {balances(where: {user: $userAddress,` +
+		` token: $tokenAddress}, orderBy: blockTimestamp_DESC, first: 1) { balance available blockTimestamp } }",
+		"variables": {
+			"userAddress" : "` + userAddress + `",
+			"tokenAddress" : "` + ticker.HaloChainAddress + `"
+		}
+	}`
+	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
+	if err != nil {
+		return
+	}
+	request.Header.Set("Content-Type", "application/json")
+	//client := &http.Client{}
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return
+	}
+
+	result := struct {
+		Data struct {
+			Balances []struct {
+				Available float64 `json:"available,string"`
+				Balance   float64 `json:"balance,string"`
+			} `json:"balances"`
+		} `json:"data"`
+	}{}
+	err = json.NewDecoder(response.Body).Decode(&result)
+	if err == nil && len(result.Data.Balances) > 0 {
+		balance = result.Data.Balances[0].Balance / 1e18
+		available = result.Data.Balances[0].Available / 1e18
+
+	}
+	return
+}
+
+// GetBalanceFormatted returns formatted balances by user address and ticker symbol
+func (dex *DEX) GetBalanceFormatted(userAddress, tickerStr string) (s string, err error) {
+	balance, available, err := dex.GetBalance(userAddress, tickerStr)
+	if err == nil {
+		s = fmt.Sprintf(""+
+			"Address   : %s\n"+
+			"Balance   : %.8f\n"+
+			"Available : %.8f",
+			userAddress, balance, available,
+		)
+	}
+	return
 }

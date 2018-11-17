@@ -47,14 +47,14 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 	}
 
 	client := &http.Client{}
-	request, errN := http.NewRequest("GET", tickerURL, nil)
-	if err = errN; err != nil {
+	request, err := http.NewRequest("GET", tickerURL, nil)
+	if err != nil {
 		return
 	}
 
 	request.Header.Set("X-CMC_PRO_API_KEY", cmc.APIKEY)
-	response, errN := client.Do(request)
-	if err = errN; err != nil {
+	response, err := client.Do(request)
+	if err != nil {
 		return
 	}
 	if response.StatusCode != 200 {
@@ -161,6 +161,6 @@ func (ticker *CMCTicker) Format() string {
 		ticker.Quote["USD"].PercentChange24H,
 		ConvertNumber(ticker.Quote["USD"].Volume24H, 2),
 		ConvertNumber(ticker.Quote["USD"].MarketCap, 2),
-		FormatTime(ticker.LastUpdated.UTC()),
+		FormatTimeReverse(ticker.LastUpdated.UTC()),
 	)
 }

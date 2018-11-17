@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
@@ -18,6 +17,7 @@ var (
 	dex             client.DEX
 	explorer        client.Explorer
 	etherscan       client.Etherscan
+	mndapp          client.MNDApp
 	addressKeywords = map[string]map[string]string{
 		"halo": {
 			// Halo Masternode reward pool
@@ -28,8 +28,9 @@ var (
 		"eth": {"h-eth": "0x70a41917365E772E41D404B3F7870CA8919b4fBe"}, // Ethereum address for H-ETH token
 	}
 	// Commands names that are not allowed in the public chats. Key: command, value: unused.
-	privateCmds = map[string]string{}
-	helpText    string
+	privateCmds     = map[string]string{}
+	helpText        string
+	helpTextPrivate string
 )
 
 // Config describes data that's required to run the application
@@ -69,6 +70,9 @@ type Config struct {
 
 	// Halo mainnet GraphQL API base URL
 	MainnetGQL string
+
+	// Halo masternodes DApp API base URL
+	MNDAppREST string
 }
 
 func main() {
@@ -84,6 +88,7 @@ func main() {
 		os.Getenv("URL_Etherscan_REST"),
 		os.Getenv("API_Key_Etherscan"),
 		os.Getenv("URL_Mainnet_GQL"),
+		os.Getenv("URL_MNDApp_REST"),
 	}
 	if config.CommandPrefix == "" {
 		//set default
@@ -101,8 +106,10 @@ func main() {
 	dex.Init(config.DEXURLGQL, config.DEXURLREST)
 	etherscan.Init(config.EtherscanREST, config.EtherscanAPIKey)
 	explorer.Init(config.ExplorerREST, config.MainnetGQL)
+	mndapp.Init(config.MNDAppREST)
 
-	helpText = generateHelpText()
+	helpText = generateHelpText(supportedCommands, true)
+	helpTextPrivate = generateHelpText(supportedCommands, false)
 
 	// Connect to discord as a bot
 	discord, err := discordgo.New("Bot " + token)
@@ -146,7 +153,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	}
 
 	cmdArgs := strings.Split(message.Content, " ")
-	command := strings.TrimPrefix(cmdArgs[0], config.CommandPrefix)
+	command := strings.ToLower(strings.TrimPrefix(cmdArgs[0], config.CommandPrefix))
 	if _, found := supportedCommands[command]; !found {
 		return
 	}
@@ -161,9 +168,12 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 	debugTag = "cmd] [" + command
 	logTS(debugTag, fmt.Sprintf("Author: %s, Message: %s\n", message.Author, message.Content))
-	switch strings.ToLower(command) {
+	switch command {
 	case "help":
 		text := "css\n" + helpText
+		if isPrivateMsg {
+			text = "css\n" + helpTextPrivate
+		}
 		discordSend(discord, channelID, text, true)
 		break
 	case "cmc":
@@ -179,9 +189,9 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		break
 	case "balance":
-		// Handle Halo chain balance commands
+		// Handle coin/token balance commands
 		if numArgs == 0 || cmdArgs[0] == "" {
-			discordSend(discord, channelID, "Halo address or one of the reserved keywords(reward-pool, h-eth) required.", false)
+			discordSend(discord, channelID, "Address or one of the reserved keywords(reward-pool, charity, h-eth...) required.", false)
 			return
 		}
 
@@ -198,6 +208,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			logTS(debugTag, "Ethereum address supplied")
 			token = "eth"
 		}
+
 		cmdArgs = cmdArgs[0 : numArgs-1]
 		if tokenAddrs, ok := addressKeywords[token]; ok {
 			if addr, found := tokenAddrs[strings.ToLower(strings.Join(cmdArgs, "-"))]; found {
@@ -243,14 +254,18 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	case "trades":
 		//TODO: swap base-quote if wrong direction provided. Cache available pairs from DEX for this.
 		//TODO: add argument for timezone or allow user to save timezone??
-		addrs := dex.TokenAddresses
-		quoteAddr := addrs["halo"].HaloChainAddress
-		baseAddr := addrs["eth"].HaloChainAddress
+		tokenAddresses, err := dex.GetTokens()
+		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
+			return
+		}
+		quoteAddr := tokenAddresses["halo"].HaloChainAddress
+		baseAddr := tokenAddresses["eth"].HaloChainAddress
 		limit := "10"
+
 		if numArgs >= 2 {
 			// Token symbol supplied
-			quoteTicker, quoteOk := addrs[strings.ToLower(cmdArgs[0])]
-			baseTicker, baseOk := addrs[strings.ToLower(cmdArgs[1])]
+			quoteTicker, quoteOk := tokenAddresses[strings.ToLower(cmdArgs[0])]
+			baseTicker, baseOk := tokenAddresses[strings.ToLower(cmdArgs[1])]
 			if !quoteOk || !baseOk {
 				_, err := discordSend(discord, channelID, fmt.Sprint("Invalid pair supplied: ", strings.Join(cmdArgs, "/")), true)
 				logErrorTS(debugTag, err)
@@ -262,16 +277,20 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 				cmdArgs[0], quoteAddr, cmdArgs[1], baseAddr))
 		}
 		if numArgs >= 3 {
+			// if limit argument is set
 			if l, err := strconv.ParseInt(cmdArgs[2], 10, 32); err == nil && l <= 50 {
 				limit = fmt.Sprint(l)
+			} else {
+				_, err = discordSend(discord, channelID, "Limit must be a valid number and max 50.", true)
+				logErrorTS(debugTag, err)
+				return
 			}
 		}
-		var err error
 		dataStr := ""
 		if command == "orders" {
 			if numArgs < 4 {
 				discordSend(discord, channelID, "Address required.", true)
-				break
+				return
 			}
 			orders, errO := dex.GetOrders(quoteAddr, baseAddr, limit, cmdArgs[3])
 			err = errO
@@ -284,15 +303,67 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			dataStr = dex.FormatTrades(trades)
 		}
 		if commandErrorIf(err, discord, channelID, "Failed to retrieve "+command, debugTag) {
-			break
+			return
 		}
 		_, err = discordSend(discord, channelID, dataStr, true)
 		logErrorTS(debugTag, err)
 		break
-	case "mn": // Private Command
-		// Handle masternode related commands
-		// TODO: get MN details by address
-		discordSend(discord, channelID, "Not implemented", true)
+	case "dexbalance": // Private Command
+		if numArgs == 0 || cmdArgs[0] == "" {
+			_, err := discordSend(discord, channelID, "Halo address required.", true)
+			logErrorTS(debugTag, err)
+			return
+		}
+		address := cmdArgs[0]
+		ticker := "halo"
+		if numArgs >= 2 {
+			ticker = strings.ToLower(cmdArgs[1])
+		}
+		balancesStr, err := dex.GetBalanceFormatted(address, ticker)
+		if commandErrorIf(err, discord, channelID, "Failed to retrieve balance.", debugTag) {
+			return
+		}
+		discordSend(discord, channelID, balancesStr, true)
+		break
+	case "tokens":
+		logTS(debugTag, "Retrieving HaloDEX tokens.")
+		strTokens, err := dex.GetTokenList()
+		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens.", debugTag) {
+			return
+		}
+		_, err = discordSend(discord, channelID, strTokens, true)
+		logErrorTS(debugTag, err)
+		break
+	case "token":
+		if numArgs == 0 {
+			_, err := discordSend(discord, channelID, "Token ticker required.", true)
+			logErrorTS(debugTag, err)
+			return
+		}
+		logTS(debugTag, "Retrieving HaloDEX tokens.")
+		tokens, err := dex.GetTokens()
+		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
+			return
+		}
+
+		// ticker supplied
+		ticker := strings.ToLower(cmdArgs[0])
+		token := tokens[ticker]
+		discordSend(discord, channelID, token.Format(), true)
+		break
+	case "my-nodes": // Private Command
+		if numArgs == 0 {
+			_, err := discordSend(discord, channelID, "Owner address required", true)
+			logErrorTS(debugTag, err)
+			return
+		}
+
+		strNodes, err := mndapp.GetMasternodesFormatted(strings.ToLower(cmdArgs[0]))
+		if commandErrorIf(err, discord, channelID, "Failed to retrieve masternodes", debugTag) {
+			return
+		}
+		_, err = discordSend(discord, channelID, strNodes, true)
+		logErrorTS(debugTag, err)
 		break
 	case "alert":
 		// Enable/disable alerts. For personal chat. Possibly for channels as well but should only be setup by admins
@@ -302,72 +373,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		discordSend(discord, channelID, "Not implemented", true)
 		break
 	}
-}
-
-func commandErrorIf(err error, discord *discordgo.Session, channelID, message, debugTag string) (hasError bool) {
-	if !logErrorTS(debugTag, err) {
-		return
-	}
-	discordSend(discord, channelID, fmt.Sprintf("%s```%s```", message, err), false)
-	return true
-}
-
-// discordSend sends a message to the supplied Discord channel. If the message is larger than Discord limit (2000
-// characters), it will split the text and send multiple messages by recursively spliting on the last line break
-// within the first 2000 character range. If line break is not existant within the range will use 2000.
-func discordSend(discord *discordgo.Session, channelID, message string, codeBlock bool) (newMessage *discordgo.Message, err error) {
-	debugTag := "discordSend()"
-	messageLimit := 2000
-	if len(strings.TrimSpace(message)) == 0 {
-		logTS(debugTag, "skipped sending empty message")
-		return
-	}
-	if codeBlock {
-		messageLimit = 1994
-	}
-	if len(message) <= messageLimit {
-		if codeBlock {
-			message = "```" + message + "```"
-		}
-		return discord.ChannelMessageSend(channelID, message)
-	}
-
-	logTS(debugTag, "Message length higher than 2000. Spliting message.")
-	// Find the last index within the first 2000 characters where line has break occured.
-	lineBreakIndex := strings.LastIndex(message[0:messageLimit], "\n")
-	if lineBreakIndex == -1 {
-		// No line break found within range. Use 2000.
-		lineBreakIndex = messageLimit
-	}
-	// Send the first message
-	newMessage, err = discordSend(discord, channelID, message[0:lineBreakIndex], codeBlock)
-	if logErrorTS(debugTag, err) {
-		return
-	}
-	// Send the subsequent message(s)
-	newMessage, err = discordSend(discord, channelID, message[lineBreakIndex:], codeBlock)
-	logErrorTS(debugTag, err)
-	return
-}
-
-func logTS(debugTag, str string) {
-	fmt.Printf("%s [%s] : %s\n", time.Now().UTC().String(), debugTag, str)
-}
-
-func logErrorTS(debugTag string, err error) (hasError bool) {
-	if err == nil {
-		return
-	}
-	logTS(debugTag, "[Error] => "+err.Error())
-	return true
-}
-
-// Command describes bot supported command
-type Command struct {
-	Description string
-	Arguments   string
-	IsPublic    bool
-	Example     string
 }
 
 // TODO: Use json config file or leave as is??
@@ -383,7 +388,7 @@ var supportedCommands = map[string]Command{
 		Example:     "!trades halo eth 10",
 	},
 	"orders": Command{
-		Description: "Get HaloDEX orders by user address. \nNot allowed in public channels.",
+		Description: "Get HaloDEX orders by user address.",
 		IsPublic:    false,
 		Arguments:   "<quote-ticerk> <base-ticker> <limit> <address>",
 		Example:     "!orders halo eth 10 0x1234567890abcdef",
@@ -406,23 +411,28 @@ var supportedCommands = map[string]Command{
 		Arguments:   "<address> [ticker]",
 		Example:     "!balance 0x1234567890abcdef",
 	},
-	// "mn": Command{
-	// 	Description: "Lists masternodes for specified address",
-	// 	IsPublic:    true,
-	// 	Arguments: map[string]string{
-	// 		"<address>": "required.",
-	// 	},
-	// ArgumentsShort: "<address>",
-	// },
-}
-
-func generateHelpText() (s string) {
-	for cmd, details := range supportedCommands {
-		s += fmt.Sprintf("!%s %s: \n  - %s \n", cmd, details.Arguments, details.Description)
-		if details.Example != "" {
-			s += fmt.Sprintf("- Example: %s\n", details.Example)
-		}
-		s += "\n"
-	}
-	return
+	"dexbalance": Command{
+		Description: "DEX account balance by address",
+		IsPublic:    false,
+		Arguments:   "<address> [ticker]",
+		Example:     "!dexbalance 0x1234567890abcdef",
+	},
+	"tokens": Command{
+		Description: "Lists all tokens supported on HaloDEX",
+		IsPublic:    true,
+		Arguments:   "[ticker]",
+		Example:     "!tokens eth",
+	},
+	"token": Command{
+		Description: "Get details of a supported token on HaloDEX",
+		IsPublic:    true,
+		Arguments:   "<ticker>",
+		Example:     "!tokens eth",
+	},
+	"my-nodes": Command{
+		Description: "Lists masternodes owned by a specific address",
+		IsPublic:    false,
+		Arguments:   "<address>",
+		Example:     "!mn 0x1234567890abcdef",
+	},
 }

@@ -11,6 +11,8 @@ import (
 // MonthsShort list of short month names
 var MonthsShort = []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 
+const dashLine = "--------------------------------------------------\n"
+
 // FillOrLimit fill string with specific filler
 func FillOrLimit(str, filler string, max int) string {
 	strLen := len(str)
@@ -56,7 +58,17 @@ func ConvertNumber(num float64, precision int) string {
 	return fmt.Sprintf("%."+fmt.Sprint(precision)+"f %s", num/divideBy, name)
 }
 
-// FormatTime formats time to string
-func FormatTime(t time.Time) string {
-	return fmt.Sprintf("%02d:%02d:%02d %02d-%s\n", t.Hour(), t.Minute(), t.Second(), t.Day(), MonthsShort[t.Month()-1])
+// FormatTimeReverse formats time to string in the following format: HH:MM:SS DD-Mon
+func FormatTimeReverse(t time.Time) string {
+	return fmt.Sprintf("%02d:%02d:%02d %02d-%s", t.Hour(), t.Minute(), t.Second(), t.Day(), MonthsShort[t.Month()-1])
+}
+
+// FormatTS formats time to string in the following format: YYYY-MM-DD hh:mm:ss
+func FormatTS(t time.Time) string {
+	return fmt.Sprintf("%04d-%02d-%02d %02d:%02d:%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+}
+
+// NowTS returns the current timestamp as a string
+func NowTS() string {
+	return FormatTS(time.Now().UTC())
 }
