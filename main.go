@@ -422,12 +422,6 @@ var supportedCommands = map[string]Command{
 		Arguments:   "[ticker]",
 		Example:     "!tokens",
 	},
-	"token": Command{
-		Description: "Get details of a supported token on HaloDEX",
-		IsPublic:    true,
-		Arguments:   "<ticker>",
-		Example:     "!token eth",
-	},
 	"my-nodes": Command{
 		Description: "Lists masternodes owned by a specific address",
 		IsPublic:    false,
