@@ -405,13 +405,13 @@ var supportedCommands = map[string]Command{
 		Example:     "!cmc btc",
 	},
 	"balance": Command{
-		Description: "Halo address balance",
+		Description: "Check your account balance. Supported addresses/chains: HALO & ETH",
 		IsPublic:    true,
 		Arguments:   "<address> [ticker]",
 		Example:     "!balance 0x1234567890abcdef",
 	},
 	"dexbalance": Command{
-		Description: "DEX account balance by address",
+		Description: "Check your DEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
 		IsPublic:    false,
 		Arguments:   "<address> [ticker]",
 		Example:     "!dexbalance 0x1234567890abcdef",
