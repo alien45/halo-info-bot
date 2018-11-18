@@ -327,20 +327,15 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		break
 	case "tokens":
 		logTS(debugTag, "Retrieving HaloDEX tokens.")
-		strTokens, err := dex.GetTokenList()
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens.", debugTag) {
-			return
-		}
-		_, err = discordSend(discord, channelID, strTokens, true)
-		logErrorTS(debugTag, err)
-		break
-	case "token":
 		if numArgs == 0 {
-			_, err := discordSend(discord, channelID, "Token ticker required.", true)
+			strTokens, err := dex.GetTokenList()
+			if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens.", debugTag) {
+				return
+			}
+			_, err = discordSend(discord, channelID, strTokens, true)
 			logErrorTS(debugTag, err)
 			return
 		}
-		logTS(debugTag, "Retrieving HaloDEX tokens.")
 		tokens, err := dex.GetTokens()
 		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
 			return
@@ -348,7 +343,11 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 		// ticker supplied
 		ticker := strings.ToLower(cmdArgs[0])
-		token := tokens[ticker]
+		token, found := tokens[ticker]
+		if !found {
+			discordSend(discord, channelID, "Invalid/unsupported token.", true)
+			return
+		}
 		discordSend(discord, channelID, token.Format(), true)
 		break
 	case "my-nodes": // Private Command
@@ -421,13 +420,13 @@ var supportedCommands = map[string]Command{
 		Description: "Lists all tokens supported on HaloDEX",
 		IsPublic:    true,
 		Arguments:   "[ticker]",
-		Example:     "!tokens eth",
+		Example:     "!tokens",
 	},
 	"token": Command{
 		Description: "Get details of a supported token on HaloDEX",
 		IsPublic:    true,
 		Arguments:   "<ticker>",
-		Example:     "!tokens eth",
+		Example:     "!token eth",
 	},
 	"my-nodes": Command{
 		Description: "Lists masternodes owned by a specific address",
