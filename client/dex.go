@@ -419,7 +419,9 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 
 // GetBalance retrieves DEX account balance by user addresses and ticker
 func (dex *DEX) GetBalance(userAddress, tickerStr string) (balance, available float64, err error) {
-	ticker, supported := dex.CachedTokens[tickerStr]
+	// update cache if necessary
+	dex.GetTokens()
+	ticker, supported := dex.CachedTokens[strings.ToLower(tickerStr)]
 	if !supported {
 		err = errors.New("Invalid or unsupported token")
 		return
