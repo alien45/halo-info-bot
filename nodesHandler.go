@@ -65,7 +65,7 @@ func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []str
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve tier distribution", debugTag) {
 		return
 	}
-	fmt.Println("T1,2,3,4: ", t1, t2, t3, t4)
+	logTS(debugTag, fmt.Sprintf("T1 : %f, T2 : %f, T3 : %f, T4 : %f ", t1, t2, t3, t4))
 
 	_, err = discordSend(discord, channelID, mndapp.FormatMNRewardDist(minted, fees, t1, t2, t3, t4), true)
 	logErrorTS(debugTag, err)
@@ -81,14 +81,15 @@ func checkPayoutInfinitely(discord *discordgo.Session, f func(discord *discordgo
 func checkPayout(discord *discordgo.Session) {
 	minted, err := mndapp.GetMintedBalance()
 	if err != nil {
-		logTS("checkPayout()] [GetMintedBalance ", fmt.Sprint(err))
+		logTS("CheckPayout] [GetMintedBalance ", fmt.Sprint(err))
 		return
 	}
 	fees, err := mndapp.GetServiceFeesBalance()
-	logErrorTS("checkPayout()] [GetServiceFeesBalance() ", err)
+	logErrorTS("CheckPayout] [GetServiceFeesBalance", err)
+	tag := "CheckPayout] [NotPayout"
 	if mndapp.MintingPoolBalance > minted {
 		// Previously retrieved balance is higher than current => means pool has been reset and payout occured
-		logTS("checkPayout()] [Payout", "")
+		tag = "CheckPayout] [Payout"
 		total := mndapp.MintingPoolBalance + mndapp.ServiceFeePoolBalance
 		mndapp.PayoutTotal = total
 		mndapp.PayoutMinted = mndapp.MintingPoolBalance
@@ -98,7 +99,7 @@ func checkPayout(discord *discordgo.Session) {
 		_, err = discordSend(discord, "509810813083582465", mndapp.FormatPayout(minted, fees, t1, t2, t3, t4), true)
 
 	}
-	logTS("checkPayout()] [NotPayout", fmt.Sprintf(
+	logTS(tag, fmt.Sprintf(
 		" Total: %f | Minted: %f | Fees: %f | ApproxTime: %s",
 		minted+fees, minted, fees, client.FormatTS(time.Now())))
 	mndapp.MintingPoolBalance = minted
