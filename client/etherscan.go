@@ -39,5 +39,5 @@ func (etherscan Etherscan) GetEthBalance(address string) (balance float64, err e
 	if err != nil {
 		return
 	}
-	return WeiHexStrToBalance(result.Balance)
+	return WeiHexStrToFloat64(result.Balance)
 }

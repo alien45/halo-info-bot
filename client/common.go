@@ -11,7 +11,8 @@ import (
 // MonthsShort list of short month names
 var MonthsShort = []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 
-const dashLine = "--------------------------------------------------\n"
+// DashLine contains dashes to fill a line of text on Discord on most mobile devices
+const DashLine = "--------------------------------------------------\n"
 
 // FillOrLimit fill string with specific filler
 func FillOrLimit(str, filler string, max int) string {
@@ -19,12 +20,15 @@ func FillOrLimit(str, filler string, max int) string {
 	if strLen > max {
 		return str[0:max]
 	}
+	if filler == "" {
+		filler = " "
+	}
 	fillerLen := len(filler)
 	return str + strings.Repeat(filler, (max-strLen)/fillerLen)
 }
 
 // WeiHexStrToBalance converts Wei Hex string to token balance
-func WeiHexStrToBalance(wei string) (balance float64, err error) {
+func WeiHexStrToFloat64(wei string) (balance float64, err error) {
 	i := new(big.Float)
 	i.SetString(wei)
 	balance, err = strconv.ParseFloat(fmt.Sprint(i), 64)
@@ -35,8 +39,8 @@ func WeiHexStrToBalance(wei string) (balance float64, err error) {
 // ConvertNumber converts large numbers to into readable string
 // Params:
 // num float64   :
-// precision int : number of decimal places to be rounded to. No rounding if 0 > precision > 18.
-func ConvertNumber(num float64, precision int) string {
+// dp int : number of decimal places to be rounded to. No rounding if 0 > precision. Max 18 DP.
+func ConvertNumber(num float64, decimalPlaces int) string {
 	divideBy := float64(1)
 	name := ""
 	if num >= 1e12 { // trillion
@@ -52,10 +56,15 @@ func ConvertNumber(num float64, precision int) string {
 		divideBy = 1e3
 		name = "Thousand"
 	}
-	if precision < 0 || precision > 18 {
-		return fmt.Sprintf("%f %s", num/divideBy, name)
+	if decimalPlaces < 0 {
+		// No decimal places
+		decimalPlaces = 0
+	} else if decimalPlaces > 18 {
+		// Max decimal places
+		decimalPlaces = 18
 	}
-	return fmt.Sprintf("%."+fmt.Sprint(precision)+"f %s", num/divideBy, name)
+
+	return fmt.Sprintf("%."+fmt.Sprint(decimalPlaces)+"f %s", num/divideBy, name)
 }
 
 // FormatTimeReverse formats time to string in the following format: HH:MM:SS DD-Mon

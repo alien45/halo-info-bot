@@ -82,7 +82,7 @@ func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, er
 	trades = tradesResult["data"]["trades"]
 	// Process received data to extract IsBuy, Price and Amount
 	for i := 0; i < len(trades); i++ {
-		trades[i].IsBuy = strings.ToLower(trades[i].TokenGet) == strings.ToLower(baseAddr)
+		trades[i].IsBuy = strings.ToUpper(trades[i].TokenGet) == strings.ToUpper(baseAddr)
 		trades[i].Time = time.Unix(0, trades[i].TimeEpochNano)
 		if trades[i].IsBuy {
 			// buy
@@ -117,7 +117,7 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 	if len(trades) == 0 {
 		return "No trades available"
 	}
-	s = "diff\n    Price        | Amount      | Time     DD-MM\n" + dashLine
+	s = "diff\n    Price        | Amount      | Time     DD-MM\n" + DashLine
 	for _, trade := range trades {
 		if trade.IsBuy {
 			s += "+ | "
@@ -126,7 +126,7 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 		}
 		s += FillOrLimit(fmt.Sprintf("%.8f", trade.Price), " ", 12) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.2f", trade.Amount), " ", 7) + "     | "
-		s += FormatTimeReverse(trade.Time.UTC()) + "\n" + dashLine
+		s += FormatTimeReverse(trade.Time.UTC()) + "\n" + DashLine
 	}
 	return
 }
@@ -257,17 +257,21 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	if len(orders) == 0 {
 		return "No orders available"
 	}
-	s = "diff\n    Price      | Amount | Filled | Time     DD-MM\n" + dashLine
+	s = "diff\n    Price      | Amount | Filled | Time     DD-MM\n" + DashLine
 	for _, order := range orders {
 		if order.IsBuy {
 			s += "+ | "
 		} else {
 			s += "- | "
 		}
+		percentDP := "1"
+		if order.FilledPercent < 1 {
+			percentDP = "3"
+		}
 		s += FillOrLimit(fmt.Sprintf("%.8f", order.Price), " ", 10) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.4f", order.Amount), " ", 6) + " | "
-		s += FillOrLimit(fmt.Sprintf("%.2f%%", order.FilledPercent), " ", 6) + " | "
-		s += FormatTimeReverse(order.Time.UTC()) + "\n" + dashLine
+		s += FillOrLimit(fmt.Sprintf("%."+percentDP+"f%%", order.FilledPercent), " ", 6) + " | "
+		s += FormatTimeReverse(order.Time.UTC()) + "\n" + DashLine
 	}
 	return
 }
@@ -386,7 +390,7 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 		fmt.Println(NowTS(), "using cached tokens.")
 		return
 	}
-	fmt.Println(NowTS(), "updating tokens' cache")
+	fmt.Println(NowTS(), "updating DEX token cache")
 	gqlQueryStr := `{"query":"{ supportedTokens { number type baseChain baseChainAddress haloAddress ticker name decimals }}"}`
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
@@ -410,35 +414,54 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 	}
 	dex.CachedTokens = map[string]Token{}
 	for i, token := range result.Data.SupportedTokens {
-		dex.CachedTokens[strings.ToLower(token.Ticker)] = result.Data.SupportedTokens[i]
+		dex.CachedTokens[token.Ticker] = result.Data.SupportedTokens[i]
 	}
 	tokens = dex.CachedTokens
 	dex.CachedTokenLastUpdated = time.Now()
 	return
 }
 
-// GetBalance retrieves DEX account balance by user addresses and ticker
-func (dex *DEX) GetBalance(userAddress, tickerStr string) (balance, available float64, err error) {
+// Balance ////
+type Balance struct {
+	Available float64 `json:"available,string"`
+	Balance   float64 `json:"balance,string"`
+}
+
+// GetBalances retrieves DEX account balance by user addresses and ticker
+func (dex *DEX) GetBalances(userAddress string, tickerStr []string) (balances map[string][]Balance, err error) {
 	// update cache if necessary
-	tickers, err := dex.GetTokens()
+	tokens, err := dex.GetTokens()
 	if err != nil {
 		return
 	}
-	ticker, supported := tickers[tickerStr]
-	if !supported {
+	found := false
+	variables := `"userAddress": "` + userAddress + `"`
+	variableDeclarations := "$userAddress: String!"
+	aliases := ""
+	for i := 0; i < len(tickerStr); i++ {
+		ticker, available := tokens[tickerStr[i]]
+		if !available {
+			continue
+		}
+		found = true
+		variables += `,"` + ticker.Ticker + `Address": "` + ticker.HaloChainAddress + `"`
+		variableDeclarations += "$" + ticker.Ticker + "Address: String!"
+		aliases += ticker.Ticker + `: balances(where: {user: $userAddress, token: $` +
+			ticker.Ticker + `Address}, orderBy: blockTimestamp_DESC, first:1) {balance available}`
+
+	}
+	if !found {
 		err = errors.New("Invalid or unsupported token")
 		return
 	}
 
-	gqlQueryStr := `{
+	// TODO: improve GQL query to retrieve multiple token balances with a single query.
+	gqlQueryStr := fmt.Sprintf(`{
 		"operationName": "balances",
-		"query":"query balances($userAddress: String!, $tokenAddress: String!) {balances(where: {user: $userAddress,` +
-		` token: $tokenAddress}, orderBy: blockTimestamp_DESC, first: 1) { balance available blockTimestamp } }",
-		"variables": {
-			"userAddress" : "` + userAddress + `",
-			"tokenAddress" : "` + ticker.HaloChainAddress + `"
-		}
-	}`
+		"query":"query balances(%s) { %s }",
+		"variables": { %s }
+	}`, variableDeclarations, aliases, variables)
+
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
@@ -450,32 +473,60 @@ func (dex *DEX) GetBalance(userAddress, tickerStr string) (balance, available fl
 		return
 	}
 
+	// result := map[string]map[string]map[string]float64{}
 	result := struct {
-		Data struct {
-			Balances []struct {
-				Available float64 `json:"available,string"`
-				Balance   float64 `json:"balance,string"`
-			} `json:"balances"`
-		} `json:"data"`
+		Data map[string][]Balance `json:"data"`
 	}{}
 	err = json.NewDecoder(response.Body).Decode(&result)
-	if err == nil && len(result.Data.Balances) > 0 {
-		balance = result.Data.Balances[0].Balance / 1e18
-		available = result.Data.Balances[0].Available / 1e18
-
+	for t := range result.Data {
+		for k := range result.Data[t] {
+			result.Data[t][k].Available /= 1e18
+			result.Data[t][k].Balance /= 1e18
+		}
 	}
+	balances = result.Data
 	return
 }
 
-// GetBalanceFormatted returns formatted balances by user address and ticker symbol
-func (dex *DEX) GetBalanceFormatted(userAddress, tickerStr string) (s string, err error) {
-	balance, available, err := dex.GetBalance(userAddress, tickerStr)
-	if err == nil {
-		s = fmt.Sprintf(""+
-			"Address  : %s\n"+
-			"Balance  : %.8f\n"+
-			"Available: %.8f",
-			userAddress, balance, available,
+// GetBalancesFormatted returns formatted balances by user address and ticker symbol
+func (dex *DEX) GetBalancesFormatted(address string, tickers []string, showZeroBalance bool) (s string, err error) {
+	if len(tickers) == 0 {
+		err = errors.New("Ticker required")
+		return
+	}
+	// Make sure ticker symbols are in upper case
+	for i := 0; i < len(tickers); i++ {
+		tickers[i] = strings.ToUpper(tickers[i])
+	}
+
+	sort.Strings(tickers)
+
+	tokenBalances, err := dex.GetBalances(address, tickers)
+	if err != nil {
+		return
+	}
+	if len(tokenBalances) == 0 {
+		err = errors.New("No balances found")
+		return
+	}
+
+	s = "  Ticker  | Balance      | Available   \n" + DashLine
+
+	fmt.Println("tokenBalances ", tokenBalances)
+	for i := 0; i < len(tickers); i++ {
+		tokenBalance := tokenBalances[tickers[i]]
+		if len(tokenBalance) == 0 {
+			tokenBalance = append(tokenBalance, Balance{Balance: 0, Available: 0})
+		}
+		if !showZeroBalance && tokenBalance[0].Balance < 1e-10 {
+			// Balance is zero
+			continue
+		}
+		s += fmt.Sprintf("  %s| %s| %s\n%s",
+			FillOrLimit(tickers[i], " ", 8),
+			FillOrLimit(fmt.Sprintf("%.10f", tokenBalance[0].Balance), " ", 13),
+			FillOrLimit(fmt.Sprintf("%.10f", tokenBalance[0].Available), " ", 13),
+			DashLine,
 		)
 	}
 	return

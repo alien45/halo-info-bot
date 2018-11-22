@@ -79,5 +79,5 @@ func (explorer Explorer) GetHaloBalance(address string) (balance float64, err er
 	if err != nil {
 		return
 	}
-	return WeiHexStrToBalance(result.Balance)
+	return WeiHexStrToFloat64(result.Balance)
 }

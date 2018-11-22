@@ -9,12 +9,14 @@ import (
 	"time"
 )
 
+var cachedCMCTickers map[string]CMCTicker
+
 // CMC struct handles all API requests relating to CoinMarketCap.com
 type CMC struct {
-	BaseURL          string
-	APIKEY           string
-	CachedTickers    map[string]CMCTicker // cached CMC Ticker container
-	CacheLastUpdated time.Time            // update every 10 mins
+	BaseURL string
+	APIKEY  string
+	//CachedTickers    map[string]CMCTicker // cached CMC Ticker container
+	CacheLastUpdated time.Time // update every 10 mins
 	CacheExpireMins  float64
 	DailyCreditLimit int64 // daily credit soft limit.
 	DailyCreditUsed  int64
@@ -34,7 +36,7 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 	tickerURL := cmc.BaseURL + "/cryptocurrency/listings/latest?start=1&limit=5000&convert=USD"
 
 	// Use cache if available and not expired
-	if cmc.DailyCreditUsed == cmc.DailyCreditLimit || (len(cmc.CachedTickers) > 0 &&
+	if cmc.DailyCreditUsed == cmc.DailyCreditLimit || (len(cachedCMCTickers) > 0 &&
 		time.Now().Sub(cmc.CacheLastUpdated).Minutes() < cmc.CacheExpireMins) {
 		fmt.Println("Using cached tickers")
 		return cmc.FindTicker(nameOrSymbol)
@@ -75,9 +77,9 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 	}
 
 	// Cache result
-	cmc.CachedTickers = map[string]CMCTicker{}
+	cachedCMCTickers = map[string]CMCTicker{}
 	for _, t := range tickersResult.Data {
-		cmc.CachedTickers[t.Symbol] = t
+		cachedCMCTickers[t.Symbol] = t
 	}
 	cmc.CacheLastUpdated = time.Now()
 	return cmc.FindTicker(nameOrSymbol)
@@ -91,7 +93,7 @@ func (cmc *CMC) FindTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 		return
 	}
 	// nameOrSymbol supplied
-	if t, ok := cmc.CachedTickers[strings.ToUpper(nameOrSymbol)]; ok {
+	if t, ok := cachedCMCTickers[strings.ToUpper(nameOrSymbol)]; ok {
 		// symbol supplied
 		ticker = t
 		return
@@ -99,7 +101,7 @@ func (cmc *CMC) FindTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 
 	// check if name provided
 	nameOrSymbol = strings.ToLower(nameOrSymbol)
-	for _, t := range cmc.CachedTickers {
+	for _, t := range cachedCMCTickers {
 		if strings.ToLower(t.Name) == nameOrSymbol {
 			ticker = t
 			return

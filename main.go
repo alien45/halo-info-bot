@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/alien45/halo-info-bot/client"
@@ -106,7 +105,7 @@ func main() {
 	dex.Init(config.DEXURLGQL, config.DEXURLREST)
 	etherscan.Init(config.EtherscanREST, config.EtherscanAPIKey)
 	explorer.Init(config.ExplorerREST, config.MainnetGQL)
-	mndapp.Init(config.MNDAppREST)
+	mndapp.Init(config.MNDAppREST, config.MainnetGQL)
 
 	helpText = generateHelpText(supportedCommands, true)
 	helpTextPrivate = generateHelpText(supportedCommands, false)
@@ -126,6 +125,8 @@ func main() {
 		}
 		fmt.Printf("Halo Info Bot has started on %d servers\n", len(discord.State.Guilds))
 	})
+
+	go checkPayoutInfinitely(discord, checkPayout)
 
 	err = discord.Open()
 	panicIf(err, "Error opening connection to Discord")
@@ -167,7 +168,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	numArgs := len(cmdArgs)
 
 	debugTag = "cmd] [" + command
-	logTS(debugTag, fmt.Sprintf("Author: %s, Message: %s\n", message.Author, message.Content))
+	logTS(debugTag, fmt.Sprintf("Author: %s, ChannelID: %s, Message: %s", message.Author, message.ChannelID, message.Content))
 	switch command {
 	case "help":
 		text := "css\n" + helpText
@@ -225,144 +226,29 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		break
 	case "ticker":
-		symbolQuote := "HALO"
-		symbolBase := "ETH"
-		if numArgs >= 2 {
-			symbolQuote = strings.ToUpper(cmdArgs[0])
-			symbolBase = strings.ToUpper(cmdArgs[1])
-		}
-		haloTotalSupply, err := explorer.GetHaloSupply()
-		logErrorTS(debugTag, err)
-
-		// Get base token price
-		cmcTicker, err := cmc.GetTicker(symbolBase)
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve retrieve price of "+symbolBase, debugTag) {
-			return
-		}
-		basePriceUSD := cmcTicker.Quote["USD"].Price
-		ticker, err := dex.GetTicker(symbolQuote, symbolBase, basePriceUSD, haloTotalSupply)
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve ticker", debugTag) {
-			return
-		}
-		logTS(debugTag, fmt.Sprintf("%s/%s ticker received: %s", symbolBase, symbolQuote, ticker.Pair))
-
-		_, err = discordSend(discord, channelID, ticker.Format(), true)
-		commandErrorIf(err, discord, channelID, "Something went wrong!", debugTag)
+		cmdDexTicker(discord, channelID, debugTag, cmdArgs, numArgs)
 		break
 	case "orders":
 		fallthrough
 	case "trades":
-		//TODO: swap base-quote if wrong direction provided. Cache available pairs from DEX for this.
-		//TODO: add argument for timezone or allow user to save timezone??
-		tokenAddresses, err := dex.GetTokens()
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
-			return
-		}
-		quoteAddr := tokenAddresses["halo"].HaloChainAddress
-		baseAddr := tokenAddresses["eth"].HaloChainAddress
-		limit := "10"
-
-		if numArgs >= 2 {
-			// Token symbol supplied
-			quoteTicker, quoteOk := tokenAddresses[strings.ToLower(cmdArgs[0])]
-			baseTicker, baseOk := tokenAddresses[strings.ToLower(cmdArgs[1])]
-			if !quoteOk || !baseOk {
-				_, err := discordSend(discord, channelID, fmt.Sprint("Invalid pair supplied: ", strings.Join(cmdArgs, "/")), true)
-				logErrorTS(debugTag, err)
-				return
-			}
-			quoteAddr = quoteTicker.HaloChainAddress
-			baseAddr = baseTicker.HaloChainAddress
-			logTS(debugTag, fmt.Sprintf("Quote Ticker: %s (%s),\n Base Ticker: %s (%s)",
-				cmdArgs[0], quoteAddr, cmdArgs[1], baseAddr))
-		}
-		if numArgs >= 3 {
-			// if limit argument is set
-			if l, err := strconv.ParseInt(cmdArgs[2], 10, 32); err == nil && l <= 50 {
-				limit = fmt.Sprint(l)
-			} else {
-				_, err = discordSend(discord, channelID, "Limit must be a valid number and max 50.", true)
-				logErrorTS(debugTag, err)
-				return
-			}
-		}
-		dataStr := ""
-		if command == "orders" {
-			if numArgs < 4 {
-				discordSend(discord, channelID, "Address required.", true)
-				return
-			}
-			orders, errO := dex.GetOrders(quoteAddr, baseAddr, limit, cmdArgs[3])
-			err = errO
-			logErrorTS(debugTag, err)
-			dataStr = dex.FormatOrders(orders)
-		} else {
-			trades, errT := dex.GetTrades(quoteAddr, baseAddr, limit)
-			err = errT
-			logErrorTS(debugTag, err)
-			dataStr = dex.FormatTrades(trades)
-		}
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve "+command, debugTag) {
-			return
-		}
-		_, err = discordSend(discord, channelID, dataStr, true)
-		logErrorTS(debugTag, err)
+		cmdDexTrades(discord, channelID, debugTag, cmdArgs, numArgs, command)
 		break
 	case "dexbalance": // Private Command
-		if numArgs == 0 || cmdArgs[0] == "" {
-			_, err := discordSend(discord, channelID, "Halo address required.", true)
-			logErrorTS(debugTag, err)
-			return
-		}
-		address := cmdArgs[0]
-		ticker := "halo"
-		if numArgs >= 2 {
-			ticker = strings.ToLower(cmdArgs[1])
-		}
-		balancesStr, err := dex.GetBalanceFormatted(address, ticker)
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve balance.", debugTag) {
-			return
-		}
-		discordSend(discord, channelID, balancesStr, true)
+		cmdDexBalance(discord, channelID, debugTag, cmdArgs, numArgs)
 		break
 	case "tokens":
-		logTS(debugTag, "Retrieving HaloDEX tokens.")
-		if numArgs == 0 {
-			strTokens, err := dex.GetTokenList()
-			if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens.", debugTag) {
-				return
-			}
-			_, err = discordSend(discord, channelID, strTokens, true)
-			logErrorTS(debugTag, err)
-			return
-		}
-		tokens, err := dex.GetTokens()
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
-			return
-		}
-
-		// ticker supplied
-		ticker := strings.ToLower(cmdArgs[0])
-		token, found := tokens[ticker]
-		if !found {
-			discordSend(discord, channelID, "Invalid/unsupported token.", true)
-			return
-		}
-		discordSend(discord, channelID, token.Format(), true)
+		cmdDexTokens(discord, channelID, debugTag, cmdArgs, numArgs)
 		break
-	case "my-nodes": // Private Command
-		if numArgs == 0 {
-			_, err := discordSend(discord, channelID, "Owner address required", true)
-			logErrorTS(debugTag, err)
-			return
-		}
-
-		strNodes, err := mndapp.GetMasternodesFormatted(strings.ToLower(cmdArgs[0]))
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve masternodes", debugTag) {
-			return
-		}
-		_, err = discordSend(discord, channelID, strNodes, true)
-		logErrorTS(debugTag, err)
+	case "nodes": // Private Command
+		cmdNodes(discord, channelID, debugTag, cmdArgs, numArgs)
+		break
+	case "mn":
+		cmdMN(discord, channelID, debugTag, cmdArgs, numArgs)
+		break
+	case "halo":
+		cmdDexTicker(discord, channelID, debugTag, []string{}, 0)
+		cmdMN(discord, channelID, debugTag, []string{}, 0)
+		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, 3, "trades")
 		break
 	case "alert":
 		// Enable/disable alerts. For personal chat. Possibly for channels as well but should only be setup by admins
@@ -386,46 +272,59 @@ var supportedCommands = map[string]Command{
 		Arguments:   "[quote-symbol] [base-symbol] [limit]",
 		Example:     "!trades halo eth 10",
 	},
-	"orders": Command{
-		Description: "Get HaloDEX orders by user address.",
-		IsPublic:    false,
-		Arguments:   "<quote-ticerk> <base-ticker> <limit> <address>",
-		Example:     "!orders halo eth 10 0x1234567890abcdef",
-	},
 	"ticker": Command{
 		Description: "Get ticker information from HaloDEX.",
 		IsPublic:    true,
-		Arguments:   "<quote-ticker> <base-ticker>",
-		Example:     "!ticker halo eth",
+		Arguments:   "[quote-ticker] [base-ticker]",
+		Example:     "!ticker OR !ticker vet OR, !ticker dbet eth",
 	},
 	"cmc": Command{
 		Description: "Fetch CoinMarketCap tickers",
 		IsPublic:    true,
 		Arguments:   "<symbol>",
-		Example:     "!cmc btc",
+		Example:     "!cmc btc OR, !cmc bitcoin cash",
 	},
 	"balance": Command{
-		Description: "Check your account balance. Supported addresses/chains: HALO & ETH",
+		Description: "Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward pool', 'charity', 'h-eth'.",
 		IsPublic:    true,
 		Arguments:   "<address> [ticker]",
 		Example:     "!balance 0x1234567890abcdef",
-	},
-	"dexbalance": Command{
-		Description: "Check your DEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
-		IsPublic:    false,
-		Arguments:   "<address> [ticker]",
-		Example:     "!dexbalance 0x1234567890abcdef",
 	},
 	"tokens": Command{
 		Description: "Lists all tokens supported on HaloDEX",
 		IsPublic:    true,
 		Arguments:   "[ticker]",
-		Example:     "!tokens",
+		Example:     "!tokens OR, !tokens halo",
 	},
-	"my-nodes": Command{
+	"mn": Command{
+		Description: "Masternode reward pool and nodes distribution information. Or get masternode collateral info.",
+		IsPublic:    true,
+		Arguments:   "[{info}]",
+		Example:     "!mn OR, !mn info",
+	},
+	"halo": Command{
+		Description: "Get a digest of information about Halo.",
+		IsPublic:    true,
+		Example:     "!halo, !vet",
+	},
+
+	// Private Commands
+	"nodes": Command{
 		Description: "Lists masternodes owned by a specific address",
 		IsPublic:    false,
-		Arguments:   "<address>",
-		Example:     "!mn 0x1234567890abcdef",
+		Arguments:   "<address> [address2] [address3....]",
+		Example:     "!nodes 0x1234567890abcdef",
+	},
+	"dexbalance": Command{
+		Description: "Check your DEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
+		IsPublic:    false,
+		Arguments:   "<address> [{0} or [ticker ticker2 ticker3...]]",
+		Example:     "!dexbalance 0x123... 0 OR, !dexbalance 0x123... ETH",
+	},
+	"orders": Command{
+		Description: "Get HaloDEX orders by user address.",
+		IsPublic:    false,
+		Arguments:   "<quote-ticker> <base-ticker> <limit> <address>",
+		Example:     "!orders halo eth 10 0x1234567890abcdef",
 	},
 }

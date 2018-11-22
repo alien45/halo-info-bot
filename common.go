@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/alien45/halo-info-bot/client"
@@ -48,8 +49,14 @@ func discordSend(discord *discordgo.Session, channelID, message string, codeBloc
 	if logErrorTS(debugTag, err) {
 		return
 	}
+
+	nextMessage := message[lineBreakIndex:]
+	if strings.HasPrefix(message, "diff\n") {
+		// Fixes discord markdown symbol "diff" not being applied to subsequent messages
+		nextMessage = "diff\n" + nextMessage
+	}
 	// Send the subsequent message(s)
-	newMessage, err = discordSend(discord, channelID, message[lineBreakIndex:], codeBlock)
+	newMessage, err = discordSend(discord, channelID, nextMessage, codeBlock)
 	logErrorTS(debugTag, err)
 	return
 }
@@ -81,16 +88,29 @@ type Command struct {
 
 // Generate text for the help command
 func generateHelpText(supportedCommands map[string]Command, publicOnly bool) (s string) {
-	for cmd, details := range supportedCommands {
+	commands := []string{}
+	for command := range supportedCommands {
+		commands = append(commands, command)
+	}
+	sort.Strings(commands)
+	for i := 0; i < len(commands); i++ {
+		cmd := commands[i]
+		details := supportedCommands[commands[i]]
 		if publicOnly && !details.IsPublic {
 			continue
 		}
 		s += fmt.Sprintf("!%s %s: \n  - %s \n", cmd, details.Arguments, details.Description)
 		if details.Example != "" {
-			s += fmt.Sprintf(" - Example: %s\n", details.Example)
+			s += fmt.Sprintf("  - Example: %s\n", details.Example)
+		}
+		if !details.IsPublic {
+			s += "  - Private command. Only available by PMing the bot.\n"
 		}
 		s += "\n"
 	}
-	s += "\n<argument> => required\n[argument] => optional"
+	s += "\n<argument> => required"
+	s += "\n[argument] => optional"
+	s += "\n{argument} => indicates exact value"
+	s += "\n\nDefaults where applicable:\n  base ticker => ETH,\n  quote ticker => Halo"
 	return
 }
