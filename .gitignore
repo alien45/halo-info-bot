@@ -14,5 +14,6 @@
 # Startup file
 start.sh
 
-# Log files
+# Log and configuration files
 *.log
+*.json
