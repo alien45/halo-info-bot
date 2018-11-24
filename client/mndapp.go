@@ -224,15 +224,15 @@ func (m *MNDApp) GetAllTierDistribution() (t1, t2, t3, t4 float64, err error) {
 func (m MNDApp) FormatMNPoolRewardData(minted, fees, t1, t2, t3, t4 float64) string {
 	t1r, t2r, t3r, t4r, duration := m.CalcReward(m.BlockReward*1440/m.BlockTimeMins, fees, t1, t2, t3, t4)
 	return fmt.Sprintf("--------------------------24hr Reward Estimate--\n"+
-		"Reward Pool      |Tier|Filled| Per MN | Per 500\n"+DashLine+
+		"Reward Pool      |Tier|Filld|  Per MN | Per 500\n"+DashLine+
 		"Minted : %s|  1 | %.0f | %s  | %.4f\n"+DashLine+
 		"Fees   : %s|  2 | %.0f | %s  | %.4f\n"+DashLine+
 		"Total  : %s|  3 | %.0f | %s  | %.4f\n"+DashLine+
 		"Elapsed: %s   |  4 | %.0f | %s  | %.4f\n",
 		FillOrLimit(fmt.Sprintf("%.0f", minted), " ", 8), t1, FillOrLimit(t1r, " ", 6), t1r,
-		FillOrLimit(fmt.Sprintf("%.4f", fees), " ", 8), t2, FillOrLimit(t2r, " ", 6), t2r/2,
-		FillOrLimit(fmt.Sprintf("%.4f", minted+fees), " ", 8), t3, FillOrLimit(t3r, " ", 6), t3r/5,
-		duration, t4, FillOrLimit(t4r, " ", 6), t4r/15)
+		FillOrLimit(fmt.Sprintf("%.4f", fees), " ", 8), t2, FillOrLimit(t2r/2, " ", 6), t2r/2,
+		FillOrLimit(fmt.Sprintf("%.4f", minted+fees), " ", 8), t3, FillOrLimit(t3r/5, " ", 6), t3r/5,
+		duration, t4, FillOrLimit(t4r/15, " ", 6), t4r/15)
 }
 
 // GetMNFormattedInfo returns formatted string with masternode tiers and their collateral requirement
