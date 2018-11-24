@@ -135,6 +135,9 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		// TODO: feather update notification
 		discordSend(discord, channelID, "Not implemented", true)
 		break
+	case "address":
+		cmdAddress(discord, channelID, fmt.Sprint(message.Author), debugTag, cmdArgs, numArgs)
+		break
 	}
 }
 
@@ -286,5 +289,11 @@ var supportedCommands = map[string]Command{
 		IsPublic:    false,
 		Arguments:   "<quote-ticker> <base-ticker> <limit> <address>",
 		Example:     "!orders halo eth 10 0x1234567890abcdef",
+	},
+	"address": Command{
+		Description: "Add, remove and get list of saved addresses.",
+		IsPublic:    false,
+		Arguments:   "[action <address1> <address2>...]",
+		Example:     "!addresses OR !addresses add 0x1234 OR !addresses remove 0x1234",
 	},
 }

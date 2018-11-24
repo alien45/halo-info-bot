@@ -222,7 +222,9 @@ func (m *MNDApp) GetAllTierDistribution() (t1, t2, t3, t4 float64, err error) {
 
 // FormatMNPoolRewardData formats Halo masternode reward pool and node distribution information into presentable text
 func (m MNDApp) FormatMNPoolRewardData(minted, fees, t1, t2, t3, t4 float64) string {
-	t1r, t2r, t3r, t4r, duration := m.CalcReward(m.BlockReward*1440/m.BlockTimeMins, fees, t1, t2, t3, t4)
+	t1r, t2r, t3r, t4r, _ := m.CalcReward(m.BlockReward*1440/m.BlockTimeMins, fees, t1, t2, t3, t4)
+	minutes := int(minted / m.BlockReward * m.BlockTimeMins)
+	duration := fmt.Sprintf("%02d:%02d", int(minutes/60), minutes%60)
 	return fmt.Sprintf("--------------------------24hr Reward Estimate--\n"+
 		"Reward Pool      |Tier|Filld|  Per MN | Per 500\n"+DashLine+
 		"Minted : %s|  1 | %.0f | %s  | %.4f\n"+DashLine+

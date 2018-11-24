@@ -93,7 +93,7 @@ func checkPayout(discord *discordgo.Session) {
 	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
 	tag := "] [NotPayout"
 	rp := mndapp.RewardPool
-	if rp.Minted > minted {
+	if rp.Minted > minted || minted == 0 {
 		// Previously retrieved balance is higher than current => pool has been reset and payout occured
 		tag = "] [Payout"
 		p := client.Payout{}

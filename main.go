@@ -62,6 +62,7 @@ type DiscordData struct {
 		Payout map[string]string `json:"payout"`
 	} `json:"alerts"` // key: channel id, value: channel id/username
 	PrivacyExceptions map[string]string `json:"privacyexceptions"` // key: channel id, value: name
+	AddressBook       map[string][]string
 }
 
 func main() {
@@ -114,7 +115,7 @@ func main() {
 
 		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers\n", len(discord.State.Guilds)))
 
-		go discordInterval(discord, 60, true, checkPayout)
+		go discordInterval(discord, 120, true, checkPayout)
 	})
 
 	err = discord.Open()
@@ -145,7 +146,7 @@ func logErrorTS(debugTag string, err error) (hasError bool) {
 }
 
 func saveDiscordFile() (err error) {
-	dataBytes, err := json.Marshal(data)
+	dataBytes, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return
 	}
