@@ -12,11 +12,11 @@ import (
 
 // MNDApp struct handles API calls to Halo Masternodes DApp
 type MNDApp struct {
-	BaseURL       string  `json:"url"`
-	MainnetGQL    string  `json:"urlgql"`
-	BlockReward   float64 `json:"blockreward"`
-	BlockTimeMins float64 `json:"blocktimemins"`
-	Collateral    map[string]float64
+	BaseURL       string             `json:"url"`
+	MainnetGQL    string             `json:"urlgql"`
+	BlockReward   float64            `json:"blockreward"`
+	BlockTimeMins float64            `json:"blocktimemins"`
+	Collateral    map[string]float64 `json:"collateral"`
 	RewardPool    Payout
 	LastPayout    Payout
 }
@@ -247,15 +247,19 @@ func (m MNDApp) GetMNFormattedInfo(serviceFees float64) (s string, err error) {
 	t2roi := t2r / m.Collateral["t2"] * 365 * 100
 	t3roi := t3r / m.Collateral["t3"] * 365 * 100
 	t4roi := t4r / m.Collateral["t4"] * 365 * 100
+	fmt.Println("ROI: ", t1roi, t2roi, t3roi, t4roi)
 
 	t1str := fmt.Sprintf("  1  |  %.0f | 5000  | %s | %s | %s%%\n", m.Collateral["t1"],
 		FillOrLimit(t1r, " ", 6), FillOrLimit(t1r, " ", 6), FillOrLimit(t1roi, " ", 6))
+
 	t2str := fmt.Sprintf("  2  | %.0f | 4000  | %s | %s | %s%%\n", m.Collateral["t2"],
-		FillOrLimit(t2r, " ", 6), FillOrLimit(t2r, " ", 6), FillOrLimit(t2roi, " ", 6))
+		FillOrLimit(t2r, " ", 6), FillOrLimit(t2r/2, " ", 6), FillOrLimit(t2roi, " ", 6))
+
 	t3str := fmt.Sprintf("  3  | %.0f | 1000  | %s | %s | %s%%\n", m.Collateral["t3"],
-		FillOrLimit(t3r, " ", 6), FillOrLimit(t3r, " ", 6), FillOrLimit(t3roi, " ", 6))
+		FillOrLimit(t3r, " ", 6), FillOrLimit(t3r/5, " ", 6), FillOrLimit(t3roi, " ", 6))
+
 	t4str := fmt.Sprintf("  4  | %.0f |  500  | %s | %s | %s%%\n", m.Collateral["t4"],
-		FillOrLimit(t4r, " ", 6), FillOrLimit(t4r, " ", 6), FillOrLimit(t4roi, " ", 6))
+		FillOrLimit(t4r, " ", 6), FillOrLimit(t4r/15, " ", 6), FillOrLimit(t4roi, " ", 6))
 
 	s = "--- Collateral ------- ROI/Day in Halo ---------\n" +
 		"Tier | Halo | Max MN | PerMN | Per500 | Per Year\n" + DashLine +
