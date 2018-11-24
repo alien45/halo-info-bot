@@ -16,4 +16,6 @@ start.sh
 
 # Log and configuration files
 *.log
-*.json
+config.json
+discord.json
+cmc.json
