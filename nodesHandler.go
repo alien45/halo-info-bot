@@ -38,71 +38,107 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs []
 }
 
 func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {
+	text := ""
+	var t1, t2, t3, t4 float64
+	var err error
 	if numArgs > 0 && strings.ToLower(cmdArgs[0]) == "info" {
-		_, err := discordSend(
-			discord,
-			channelID,
-			fmt.Sprint("Tier     । Collateral    । Max Nodes\n", client.DashLine+
-				"Tier 1   ।  500          । 5000\n"+client.DashLine+ //0.4 Million
-				"Tier 2   ।  1000         । 1000\n"+client.DashLine+ //0.8 Million
-				"Tier 3   ।  2500         । 1000\n"+client.DashLine+ //2.0 Million
-				"Tier 1   ।  7500         । 500\n"+client.DashLine), //6.0 Million
-			true,
-		)
-		logErrorTS(debugTag, err)
-		return
+		text, err = mndapp.GetMNFormattedInfo(0)
+		if commandErrorIf(err, discord, channelID, "Failed to retrieve info", debugTag) {
+			return
+		}
+		goto SendMessage
 	}
 
-	minted, err := mndapp.GetMintedBalance()
-	if commandErrorIf(err, discord, channelID, "Failed to retrieve minting pool balance", debugTag) {
-		return
+	if numArgs > 0 && strings.ToLower(cmdArgs[0]) == "last" {
+		// Send last payout data
+		p := mndapp.LastPayout
+		if p.Total == 0 {
+			text = "Data not available!"
+			goto SendMessage
+		}
+		text = "------------------Last Payout-------------------\n" + p.Format()
+		goto SendMessage
 	}
-	fees, err := mndapp.GetServiceFeesBalance()
-	if commandErrorIf(err, discord, channelID, "Failed to retrieve service fees pool balance", debugTag) {
-		return
-	}
-	t1, t2, t3, t4, err := mndapp.GetAllTierDistribution()
+
+	t1, t2, t3, t4, err = mndapp.GetAllTierDistribution()
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve tier distribution", debugTag) {
 		return
 	}
-	logTS(debugTag, fmt.Sprintf("T1 : %f, T2 : %f, T3 : %f, T4 : %f ", t1, t2, t3, t4))
-
-	_, err = discordSend(discord, channelID, mndapp.FormatMNRewardDist(minted, fees, t1, t2, t3, t4), true)
+	// Send payout in progress data and tier distribution
+	text = mndapp.FormatMNRewardDist(mndapp.RewardPool.Minted, mndapp.RewardPool.Fees, t1, t2, t3, t4)
+SendMessage:
+	_, err = discordSend(discord, channelID, "js\n"+text, true)
 	logErrorTS(debugTag, err)
 }
 
-func checkPayoutInfinitely(discord *discordgo.Session, f func(discord *discordgo.Session)) {
-	f(discord) // execute immediately
-	for range time.Tick(time.Minute * 2) {
+// discordInterval invoke a function periodically and only supplies Discord session as parameter
+func discordInterval(discord *discordgo.Session, seconds int, executeOnInit bool, f func(discord *discordgo.Session)) {
+	if executeOnInit {
+		f(discord)
+	}
+	// Execute on interval
+	for range time.Tick(time.Second * time.Duration(seconds)) {
 		f(discord)
 	}
 }
 
 func checkPayout(discord *discordgo.Session) {
+	debugTag := "CheckPayout"
 	minted, err := mndapp.GetMintedBalance()
 	if err != nil {
-		logTS("CheckPayout] [GetMintedBalance ", fmt.Sprint(err))
+		logTS(debugTag+"] [GetMintedBalance ", fmt.Sprint(err))
 		return
 	}
 	fees, err := mndapp.GetServiceFeesBalance()
-	logErrorTS("CheckPayout] [GetServiceFeesBalance", err)
-	tag := "CheckPayout] [NotPayout"
-	if mndapp.MintingPoolBalance > minted {
-		// Previously retrieved balance is higher than current => means pool has been reset and payout occured
-		tag = "CheckPayout] [Payout"
-		total := mndapp.MintingPoolBalance + mndapp.ServiceFeePoolBalance
-		mndapp.PayoutTotal = total
-		mndapp.PayoutMinted = mndapp.MintingPoolBalance
-		mndapp.PayoutFees = mndapp.ServiceFeePoolBalance
-		mndapp.PayoutTime = mndapp.LastUpdated
-		t1, t2, t3, t4, _ := mndapp.GetAllTierDistribution()
-		_, err = discordSend(discord, "509810813083582465", mndapp.FormatPayout(minted, fees, t1, t2, t3, t4), true)
+	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
+	tag := "] [NotPayout"
+	rp := mndapp.RewardPool
+	if rp.Minted > minted {
+		// Previously retrieved balance is higher than current => pool has been reset and payout occured
+		tag = "] [Payout"
+		p := client.Payout{}
+		p.Total = rp.Minted + rp.Fees
+		p.Minted = rp.Minted
+		p.Fees = rp.Fees
+		p.Time = rp.Time
 
+		t1, t2, t3, t4, err := mndapp.GetAllTierDistribution()
+		logErrorTS("CheckPayout", err)
+		p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"], p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
+		sendPayoutAlerts(discord, p)
+
+		// update last payout details to config file
+		data.LastPayout = mndapp.LastPayout
+		saveDiscordFile()
 	}
-	logTS(tag, fmt.Sprintf(
+	logTS(debugTag+tag, fmt.Sprintf(
 		" Total: %f | Minted: %f | Fees: %f | ApproxTime: %s",
 		minted+fees, minted, fees, client.FormatTS(time.Now())))
-	mndapp.MintingPoolBalance = minted
-	mndapp.ServiceFeePoolBalance = fees
-	mndapp.LastUpdated = time.Now()
+
+	mndapp.RewardPool.Minted = minted
+	mndapp.RewardPool.Fees = fees
+	mndapp.RewardPool.Time = time.Now()
+}
+
+// sendPayoutAlerts
+func sendPayoutAlerts(discord *discordgo.Session, p client.Payout) {
+	// TODO: send alert to subscribed (add opt-in/out command) channels and users
+	success := 1
+	total := len(data.Alerts.Payout)
+	for channelID, name := range data.Alerts.Payout {
+		_, err := discordSend(
+			discord,
+			channelID,
+			"Delicious payout is served @here!```js\n"+
+				p.Format()+"``````fix\nPS: Actual amount received may be slightly higher "+
+				"due to the tier distribution returned by API includes deposited nodes.",
+			false)
+		if err != nil {
+			logTS("PayoutAlert", fmt.Sprintf("Payout Alert Failed! Channel ID: %s, Name: %s", channelID, name))
+			continue
+		}
+		// success
+		success++
+	}
+	logTS("PayoutAlertSummary", fmt.Sprintf("Total alerts: %d | Success: %d | Failure: %d", total, success, total-success))
 }

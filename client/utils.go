@@ -1,8 +1,11 @@
 package client
 
 import (
+	"bufio"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -12,10 +15,11 @@ import (
 var MonthsShort = []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 
 // DashLine contains dashes to fill a line of text on Discord on most mobile devices
-const DashLine = "--------------------------------------------------\n"
+const DashLine = "------------------------------------------------\n"
 
 // FillOrLimit fill string with specific filler
-func FillOrLimit(str, filler string, max int) string {
+func FillOrLimit(s interface{}, filler string, max int) string {
+	str := fmt.Sprint(s)
 	strLen := len(str)
 	if strLen > max {
 		return str[0:max]
@@ -27,7 +31,7 @@ func FillOrLimit(str, filler string, max int) string {
 	return str + strings.Repeat(filler, (max-strLen)/fillerLen)
 }
 
-// WeiHexStrToBalance converts Wei Hex string to token balance
+// WeiHexStrToFloat64 converts Wei Hex string to token balance
 func WeiHexStrToFloat64(wei string) (balance float64, err error) {
 	i := new(big.Float)
 	i.SetString(wei)
@@ -80,4 +84,27 @@ func FormatTS(t time.Time) string {
 // NowTS returns the current timestamp as a string
 func NowTS() string {
 	return FormatTS(time.Now().UTC())
+}
+
+// ReadFile reads and returns text content of the specified file
+func ReadFile(pathToFile string) (text string, err error) {
+	//open file for reading
+	file, err := os.Open(pathToFile)
+	defer file.Close()
+	if err != nil {
+		return
+	}
+	//initiate line by line scanner
+	scanner := bufio.NewScanner(file)
+	// Read each line
+	for scanner.Scan() {
+		text += scanner.Text()
+	}
+	err = scanner.Err()
+	return
+}
+
+// WriteFile Writes file to system
+func WriteFile(destinationPath string, text string, permission os.FileMode) error {
+	return ioutil.WriteFile(destinationPath, []byte(text), permission)
 }

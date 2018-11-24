@@ -146,8 +146,6 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 		}
 		quoteAddr = quoteTicker.HaloChainAddress
 		baseAddr = baseTicker.HaloChainAddress
-		logTS(debugTag, fmt.Sprintf("Quote Ticker: %s (%s),\n Base Ticker: %s (%s)",
-			cmdArgs[0], quoteAddr, cmdArgs[1], baseAddr))
 	}
 	if numArgs >= 3 {
 		// if limit argument is set

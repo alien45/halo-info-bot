@@ -13,13 +13,13 @@ var cachedCMCTickers map[string]CMCTicker
 
 // CMC struct handles all API requests relating to CoinMarketCap.com
 type CMC struct {
-	BaseURL string
-	APIKEY  string
-	//CachedTickers    map[string]CMCTicker // cached CMC Ticker container
-	CacheLastUpdated time.Time // update every 10 mins
-	CacheExpireMins  float64
-	DailyCreditLimit int64 // daily credit soft limit.
+	BaseURL          string `json:"url"`
+	APIKEY           string `json:"apikey"`
+	CacheLastUpdated time.Time
+	CacheExpireMins  float64 `json:"cacheexpiremins"`
+	DailyCreditLimit int64   `json:"dailycreditlimit"`
 	DailyCreditUsed  int64
+	//CachedTickers    map[string]CMCTicker // cached CMC Ticker container
 }
 
 // Init instantiates a new CMC instance
@@ -153,7 +153,7 @@ type CMCQuote struct {
 // Format formats important ticker values into a string
 func (ticker *CMCTicker) Format() string {
 	return fmt.Sprintf("Ticker           : %s (%s)\n"+
-		"Price USD        : $%.2f\n"+
+		"Price USD        : $%.4f\n"+
 		"24H Price Change : %.2f%%\n"+
 		"24H Volume USD   : $%s\n"+
 		"Market Cap USD   : $%s\n"+

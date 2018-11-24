@@ -15,14 +15,14 @@ import (
 // DEX struct handles all API requests relating to HaloDEX
 type DEX struct {
 	// HaloDEX GraphQL API URL
-	GQLURL string
+	GQLURL string `json:"urlgql"`
 	// HaloDEX public REST API URL
-	PublicURL string
+	PublicURL string `json:"url"`
 
 	// Smart Contract addresses of the tokens available on the HaloDEX
 	CachedTokens map[string]Token
 	// Cache expiration time in minutes.
-	CachedTokenExpireMins float64
+	CachedTokenExpireMins float64 `json:"tokenexpiremins"`
 	// Cached Token last updated timestamp
 	CachedTokenLastUpdated time.Time
 
@@ -30,7 +30,7 @@ type DEX struct {
 	// key: pair (eg: halo/eth), value: Ticker
 	CachedTickers map[string]Ticker
 	// Cache expiration time in minutes.
-	CachedTickerExpireMins float64
+	CachedTickerExpireMins float64 `json:"tickerexpiremins"`
 	// Cached Ticker last updated timestamp
 	CachedTickerLastUpdated time.Time
 }
@@ -257,12 +257,12 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	if len(orders) == 0 {
 		return "No orders available"
 	}
-	s = "diff\n    Price      | Amount | Filled | Time     DD-MM\n" + DashLine
+	s = "diff\n  Price      | Amount | Filled | Time     DD-MM\n" + DashLine
 	for _, order := range orders {
 		if order.IsBuy {
-			s += "+ | "
+			s += "+ "
 		} else {
-			s += "- | "
+			s += "- "
 		}
 		percentDP := "1"
 		if order.FilledPercent < 1 {
@@ -278,7 +278,6 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 
 // GetOrders retrieves HaloDEX orders by user address
 func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []Order, err error) {
-	fmt.Println(NowTS(), " [GetOrders], quote: ", quoteAddr, " base: ", baseAddr, " address: ", address)
 	//quick and dirty GQL query
 	gqlQueryStr := `{
 		"operationName": "users",
@@ -311,12 +310,8 @@ func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []
 	}
 
 	orders = ordersResult["data"]["orders"]
-	fmt.Println(NowTS(), " [GetOrder] Orders received: ", len(orders))
 	// Process received data to extract IsBuy, Price and Amount
 	for i := 0; i < len(orders); i++ {
-		if i == 0 {
-			fmt.Printf("%s [GetOrder] %+v\n", NowTS(), orders[i])
-		}
 		amtGet := orders[i].AmountGet
 		amtGive := orders[i].AmountGive
 		orders[i].IsBuy = strings.ToLower(orders[i].TokenGet) == strings.ToLower(quoteAddr)
@@ -511,8 +506,6 @@ func (dex *DEX) GetBalancesFormatted(address string, tickers []string, showZeroB
 	}
 
 	s = "  Ticker  | Balance      | Available   \n" + DashLine
-
-	fmt.Println("tokenBalances ", tokenBalances)
 	for i := 0; i < len(tickers); i++ {
 		tokenBalance := tokenBalances[tickers[i]]
 		if len(tokenBalance) == 0 {

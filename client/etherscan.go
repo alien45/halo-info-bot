@@ -8,8 +8,8 @@ import (
 
 // Etherscan handles API requests to http://etherscan.io
 type Etherscan struct {
-	BaseURL string
-	APIKey  string
+	BaseURL string `json:"url"`
+	APIKey  string `json:"apikey"`
 }
 
 // Init instantiates Etherscan with required data to access the API

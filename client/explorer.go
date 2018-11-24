@@ -10,11 +10,11 @@ import (
 
 // Explorer struct handles all API requests relating to Halo Explorer
 type Explorer struct {
-	BaseURL           string
-	MainnetGQL        string
+	BaseURL           string `json:"url"`
+	MainnetGQL        string `json:"urlgql"`
 	CachedTotalSupply float64
 	CacheLastUpdated  time.Time
-	CacheExpireMins   float64
+	CacheExpireMins   float64 `json:"cacheexpiremins"`
 }
 
 // Init instantiates HaloExplorer with API URL
