@@ -65,7 +65,7 @@ func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []str
 		return
 	}
 	// Send payout in progress data and tier distribution
-	text = mndapp.FormatMNRewardDist(mndapp.RewardPool.Minted, mndapp.RewardPool.Fees, t1, t2, t3, t4)
+	text = mndapp.FormatMNPoolRewardData(mndapp.RewardPool.Minted, mndapp.RewardPool.Fees, t1, t2, t3, t4)
 SendMessage:
 	_, err = discordSend(discord, channelID, "js\n"+text, true)
 	logErrorTS(debugTag, err)
