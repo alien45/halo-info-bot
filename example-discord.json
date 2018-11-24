@@ -1,0 +1,33 @@
+{    
+    "lastpayout": {
+        "minted": 0.00,
+        "fees": 0.00,
+        "total": 0.00,
+        "duration": "24:00",
+        "time": "2018-01-23T12:34:56Z",
+        "tiers": {
+            "t1": 0.00,
+            "t2": 0.00,
+            "t3": 0.00,
+            "t4": 0.00
+        }
+    },
+    "addressbook" : {
+        "username#1234" : [
+            "0x123456789abcdef1",
+            "0x123456789abcdef2",
+            "0x123456789abcdef3"
+        ]
+    },
+    "alerts" : 
+    {
+        "payout": 
+        {
+            "012345678901234567": "@username#1234",
+            "012345678901234568": "#channelname@servername"
+        }
+    },
+    "privacyexceptions" : {
+        "509788668823732254": "#channelname@servername"
+    }
+}

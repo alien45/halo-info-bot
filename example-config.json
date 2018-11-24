@@ -1,0 +1,43 @@
+{
+    "apiclients" : {
+        "discordbot": {
+            "token": "",
+            "prefix": "!",
+            "rootuser" : ""
+        },
+        "cmc" : {
+            "url": "https://pro-api.coinmarketcap.com/v1",
+            "apikey": "",
+            "cacheexpiremins": 10,
+            "dailycreditlimit": 33,
+            "cachefilepath": ""
+        },
+        "etherscan": {
+            "url": "https://api.etherscan.io/api",
+            "apikey" : ""
+        },
+        "halodex" :{
+            "url": "https://public.halodex.io",
+            "urlgql": "",
+            "tokenexpiremins": 480,
+            "tickerexpiremins": 3
+        },
+        "explorer": {
+            "url": "",
+            "urlgql": "",
+            "cacheexpiremins": 3
+        },
+        "mndapp": {
+            "url": "",
+            "urlgql": "",
+            "blockreward" : 38,
+            "blocktimemins": 4,
+            "collateral": {
+                "t1": 500,
+                "t2": 1000,
+                "t3": 2500,
+                "t4": 7500
+            }
+        }
+    }
+}
