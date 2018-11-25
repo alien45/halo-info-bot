@@ -38,7 +38,7 @@ type Payout struct {
 	Total    float64            `json:"total"`
 	Duration string             `json:"duration"`
 	Time     time.Time          `json:"time"`
-	Tiers    map[string]float64 `json:"tiers"`
+	Tiers    map[string]float64 `json:"tiers,,omitempty"`
 }
 
 // Format returns payout data as strings

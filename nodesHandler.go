@@ -93,8 +93,9 @@ func checkPayout(discord *discordgo.Session) {
 	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
 	tag := "] [NotPayout"
 	rp := mndapp.RewardPool
-	if rp.Minted > minted || minted == 0 {
-		// Previously retrieved balance is higher than current => pool has been reset and payout occured
+	if true { //rp.Minted > minted || minted == 0 {
+		// Previously retrieved balance is higher than current
+		// => means pool has been reset and payout occured
 		tag = "] [Payout"
 		p := client.Payout{}
 		p.Total = rp.Minted + rp.Fees
@@ -104,7 +105,15 @@ func checkPayout(discord *discordgo.Session) {
 
 		t1, t2, t3, t4, err := mndapp.GetAllTierDistribution()
 		logErrorTS("CheckPayout", err)
-		p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"], p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
+		// Prevent "assignment to nil map error"
+		if p.Tiers == nil {
+			p.Tiers = map[string]float64{}
+		}
+		p.Tiers["t1"],
+			p.Tiers["t2"],
+			p.Tiers["t3"],
+			p.Tiers["t4"],
+			p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
 		sendPayoutAlerts(discord, p)
 
 		// update last payout details to config file
