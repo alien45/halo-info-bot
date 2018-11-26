@@ -95,8 +95,8 @@ func main() {
 	explorer = conf.Client.Explorer
 	mndapp = conf.Client.MNDApp
 
-	helpText = generateHelpText(supportedCommands, true)
-	helpTextPrivate = generateHelpText(supportedCommands, false)
+	helpText = generateHelpText(true)
+	helpTextPrivate = generateHelpText(false)
 
 	// Connect to discord as a bot
 	discord, err := discordgo.New("Bot " + conf.Client.DiscordBot.Token)

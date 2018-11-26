@@ -69,11 +69,16 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	logTS(debugTag, fmt.Sprintf("Author: %s, ChannelID: %s, Message: %s", message.Author, message.ChannelID, message.Content))
 	switch command {
 	case "help":
-		text := "css\n" + helpText
-		if isPrivateMsg {
-			text = "css\n" + helpTextPrivate
+		txt := ""
+		if numArgs > 0 {
+			txt = commandHelpText(cmdArgs[0])
+		} else if isPrivateMsg {
+			txt = helpTextPrivate
+		} else {
+			txt = helpText
 		}
-		discordSend(discord, channelID, text, true)
+		_, err := discordSend(discord, channelID, "css\n"+txt, true)
+		logErrorTS(debugTag, err)
 		break
 	case "balance":
 		address := ""
@@ -233,7 +238,7 @@ func discordSend(discord *discordgo.Session, channelID, message string, codeBloc
 }
 
 // Generate text for the help command
-func generateHelpText(supportedCommands map[string]Command, publicOnly bool) (s string) {
+func generateHelpText(publicOnly bool) (s string) {
 	commands := []string{}
 	for command := range supportedCommands {
 		commands = append(commands, command)
@@ -245,20 +250,36 @@ func generateHelpText(supportedCommands map[string]Command, publicOnly bool) (s 
 		if publicOnly && !details.IsPublic {
 			continue
 		}
+		s += fmt.Sprintf("!%s %s\n", cmd, details.Arguments)
+	}
+	s += "\n<argument> => required"
+	s += "\n[argument] => optional"
+	s += "\n{argument} => indicates exact value"
+	s += "\n\nDefaults where applicable:\n - Base ticker => ETH,\n - Quote ticker => Halo\n" +
+		" - Address(es) => first/all item(s) saved on address book, if avaiable"
+	return
+}
+
+// commandHelpText returns help text for a specific command
+func commandHelpText(commandName string) (s string) {
+	for cmd, details := range supportedCommands {
+		if cmd != strings.ToLower(commandName) {
+			continue
+		}
 		s += fmt.Sprintf("!%s %s: \n  - %s \n", cmd, details.Arguments, details.Description)
 		if details.Example != "" {
-			s += fmt.Sprintf("  - Example: %s\n", details.Example)
+			seperator := "\n           "
+			exampleF := seperator + strings.Join(strings.Split(details.Example, "OR, "), seperator)
+			s += fmt.Sprintf("  - Example: %s\n", exampleF)
 		}
 		if !details.IsPublic {
 			s += "  - Private command. Only available by PMing the bot.\n"
 		}
 		s += "\n"
 	}
-	s += "\n<argument> => required"
-	s += "\n[argument] => optional"
-	s += "\n{argument} => indicates exact value"
-	s += "\n\nDefaults where applicable:\n  Base ticker => ETH,\n  Quote ticker => Halo\n" +
-		"Address(es) => first/all item(s) saved on address book, if avaiable"
+	if s == "" {
+		s = commandName + " is not a valid command"
+	}
 	return
 }
 
@@ -266,7 +287,9 @@ func generateHelpText(supportedCommands map[string]Command, publicOnly bool) (s 
 var supportedCommands = map[string]Command{
 	"help": Command{
 		Description: "Prints this message",
+		Arguments:   "[command-name]",
 		IsPublic:    true,
+		Example:     "!help OR, !help balance",
 	},
 	"trades": Command{
 		Description: "Recent trades from HaloDEX",
@@ -278,13 +301,13 @@ var supportedCommands = map[string]Command{
 		Description: "Get ticker information from HaloDEX.",
 		IsPublic:    true,
 		Arguments:   "[quote-ticker] [base-ticker]",
-		Example:     "!ticker OR !ticker vet OR, !ticker dbet eth",
+		Example:     "!ticker OR, !ticker vet OR, !ticker dbet eth",
 	},
 	"cmc": Command{
 		Description: "Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command.",
 		IsPublic:    true,
 		Arguments:   "<symbol>",
-		Example:     "!cmc powr, OR, !cmc power ledger, OR !powr (shorthand for '!cmc powr')",
+		Example:     "!cmc powr, OR, !cmc power ledger, OR, !powr (shorthand for '!cmc powr')",
 	},
 	"balance": Command{
 		Description: "Check your account balance. Supported addresses/chains: HALO & ETH. " +
@@ -293,7 +316,7 @@ var supportedCommands = map[string]Command{
 			"To get balance of a specific item from address book just type the index number of the address.",
 		IsPublic:  true,
 		Arguments: "[address] [ticker]",
-		Example:   "!balance 0x1234567890abcdef OR !balance OR, !balance 2 (for 2nd item in address book)",
+		Example:   "!balance 0x1234567890abcdef OR, !balance OR, !balance 2 (for 2nd item in the address book)",
 	},
 	"tokens": Command{
 		Description: "Lists all tokens supported on HaloDEX",
@@ -302,7 +325,7 @@ var supportedCommands = map[string]Command{
 		Example:     "!tokens OR, !tokens halo",
 	},
 	"mn": Command{
-		Description: "Shows rasternode reward pool, nodes distribution, last payout and ROI based on last payout. Or get masternode collateral info.",
+		Description: "Shows masternode collateral, reward pool balances, nodes distribution, last payout and ROI based on last payout.",
 		IsPublic:    true,
 	},
 	"halo": Command{
@@ -334,6 +357,6 @@ var supportedCommands = map[string]Command{
 		Description: "Add, remove and get list of saved addresses.",
 		IsPublic:    false,
 		Arguments:   "[action <address1> <address2>...]",
-		Example:     "!addresses OR !addresses add 0x1234 OR !addresses remove 0x1234",
+		Example:     "!addresses OR, !addresses add 0x1234 OR, !addresses remove 0x1234",
 	},
 }
