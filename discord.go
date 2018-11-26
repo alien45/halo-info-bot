@@ -30,7 +30,8 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	channelID := message.ChannelID
 	debugTag := "commandHandler"
 	isPrivateMsg := message.GuildID == ""
-	if user.ID == botID || user.Bot || !strings.HasPrefix(message.Content, commandPrefix) {
+	hasPrefix := strings.HasPrefix(message.Content, commandPrefix)
+	if user.ID == botID || user.Bot || (!isPrivateMsg && !hasPrefix) {
 		// Ignore messages from any bot or messages that are not commands
 		return
 	}
