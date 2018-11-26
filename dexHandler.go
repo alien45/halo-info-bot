@@ -34,35 +34,49 @@ func cmdDexTokens(discord *discordgo.Session, channelID, debugTag string, cmdArg
 	discordSend(discord, channelID, token.Format(), true)
 }
 
-func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {
-	if numArgs == 0 || cmdArgs[0] == "" {
-		_, err := discordSend(discord, channelID, "Halo address required.", true)
-		logErrorTS(debugTag, err)
-		return
+func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs, addresses []string, numArgs, numAddresses int) {
+	txt := ""
+	var err error
+	address := ""
+	if numArgs == 0 {
+		cmdArgs = []string{""}
 	}
-	address := cmdArgs[0]
+	address = cmdArgs[0]
 	tickerSupplied := numArgs >= 2 && cmdArgs[1] != "0"
 	showZero := numArgs == 2 && cmdArgs[1] == "0" || tickerSupplied
 	tickers := cmdArgs[1:]
 	if showZero && numArgs == 2 {
 		tickers = cmdArgs[2:]
 	}
+	if address == "" {
+		if numAddresses == 0 {
+			txt = "Halo chain address required."
+			goto SendMessage
+		}
+		// Use first address from user's addressbook
+		address = addresses[0]
+	}
 
 	if !tickerSupplied {
-		// All tickers if unspecified
+		// No ticker supplied, show all tickers' balance
 		tokens, err := dex.GetTokens()
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
-			return
+		if err != nil {
+			txt = "Failed to retrieve tokens"
+			logErrorTS(debugTag, err)
+			goto SendMessage
 		}
 		for ticker := range tokens {
 			tickers = append(tickers, ticker)
 		}
 	}
-	balancesStr, err := dex.GetBalancesFormatted(address, tickers, showZero)
-	if commandErrorIf(err, discord, channelID, "Failed to retrieve balance.", debugTag) {
-		return
+	logTS(debugTag, "Address: "+address)
+	txt, err = dex.GetBalancesFormatted(address, tickers, showZero)
+	if err != nil {
+		txt = "Failed to retrieve balance."
+		logErrorTS(debugTag, err)
 	}
-	discordSend(discord, channelID, balancesStr, true)
+SendMessage:
+	discordSend(discord, channelID, txt, true)
 }
 
 func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {

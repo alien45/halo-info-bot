@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -23,6 +24,9 @@ type Command struct {
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate, commandPrefix string) {
 	user := message.Author
+	username := fmt.Sprint(message.Author)
+	userAddresses := data.AddressBook[username]
+	numAddresses := len(userAddresses)
 	channelID := message.ChannelID
 	debugTag := "commandHandler"
 	isPrivateMsg := message.GuildID == ""
@@ -44,6 +48,9 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	}
 	cmdArgs = cmdArgs[1:]
 	numArgs := len(cmdArgs)
+	if numArgs == 0 {
+		cmdArgs = []string{}
+	}
 
 	debugTag = "cmd] [" + command
 	logTS(debugTag, fmt.Sprintf("Author: %s, ChannelID: %s, Message: %s", message.Author, message.ChannelID, message.Content))
@@ -68,39 +75,55 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		break
 	case "balance":
+		address := ""
+		txt := ""
+		num := 0
+		balance := float64(0)
+		var err error
+		balfunc := explorer.GetHaloBalance
+
 		// Handle coin/token balance commands
 		if numArgs == 0 || cmdArgs[0] == "" {
-			discordSend(discord, channelID, "Address or one of the reserved keywords(reward-pool, charity, h-eth...) required.", false)
-			return
+			// No address/address book index supplied
+			if numAddresses == 0 {
+				txt = "Address required."
+				goto SendMessage
+			}
+			// Use first item from user's address book
+			cmdArgs = append(cmdArgs, userAddresses[0])
+			numArgs++
 		}
 
-		address := cmdArgs[0]
-		if addr, found := addressKeywords["halo"][strings.ToLower(strings.Join(cmdArgs, "-"))]; found {
-			// Valid keyword supplied
-			address = addr
-		}
-
-		balfunc := explorer.GetHaloBalance
-		token := "halo"
+		// Check if balance enquiry is for Ethereum
 		if cmdArgs[numArgs-1] == "eth" {
 			balfunc = etherscan.GetEthBalance
 			logTS(debugTag, "Ethereum address supplied")
-			token = "eth"
+			// remove token argument to keep only addresses/keywords
+			cmdArgs = cmdArgs[:numArgs-1]
 		}
 
-		cmdArgs = cmdArgs[0 : numArgs-1]
-		if tokenAddrs, ok := addressKeywords[token]; ok {
-			if addr, found := tokenAddrs[strings.ToLower(strings.Join(cmdArgs, "-"))]; found {
-				// Valid keyword supplied
-				address = addr
+		address = cmdArgs[0]
+		if addr, found := addressKeywords[strings.ToLower(strings.Join(cmdArgs, "-"))]; found {
+			// Valid keyword supplied
+			address = addr
+		}
+		if !strings.HasPrefix(strings.ToLower(address), "0x") {
+			// Not a valid address
+			num, err = strconv.Atoi(address)
+			if err != nil || numAddresses < num {
+				txt = "Valid address or address book item number required."
+				goto SendMessage
 			}
+			address = userAddresses[num-1]
 		}
 
-		balance, err := balfunc(address)
+		balance, err = balfunc(address)
 		if commandErrorIf(err, discord, channelID, "Failed to retrieve balance for "+address, debugTag) {
 			return
 		}
-		_, err = discordSend(discord, channelID, fmt.Sprintf("Balance: %.8f", balance), false)
+		txt = fmt.Sprintf("Balance: %.8f", balance)
+	SendMessage:
+		_, err = discordSend(discord, channelID, txt, false)
 		logErrorTS(debugTag, err)
 		break
 	case "ticker":
@@ -112,13 +135,13 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		cmdDexTrades(discord, channelID, debugTag, cmdArgs, numArgs, command)
 		break
 	case "dexbalance": // Private Command
-		cmdDexBalance(discord, channelID, debugTag, cmdArgs, numArgs)
+		cmdDexBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
 		break
 	case "tokens":
 		cmdDexTokens(discord, channelID, debugTag, cmdArgs, numArgs)
 		break
 	case "nodes": // Private Command
-		cmdNodes(discord, channelID, debugTag, cmdArgs, numArgs)
+		cmdNodes(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
 		break
 	case "mn":
 		cmdMN(discord, channelID, debugTag, cmdArgs, numArgs)

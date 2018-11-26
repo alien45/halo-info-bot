@@ -9,16 +9,22 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {
-	if numArgs == 0 {
-		_, err := discordSend(discord, channelID, "Owner address required", true)
-		logErrorTS(debugTag, err)
-		return
-	}
-
+func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, userAddresses []string, numArgs, numAddresses int) {
 	addresses := cmdArgs
 	addrs := map[string]int{}
 	nodes := []client.Masternode{}
+	txt := ""
+
+	if numArgs == 0 {
+		// No address supplied
+		if numAddresses == 0 {
+			// User has no saved addresses
+			txt = "Owner address required"
+			goto SendMessage
+		}
+		addresses = userAddresses
+	}
+
 	for i := 0; i < len(addresses); i++ {
 		address := strings.ToUpper(addresses[i])
 		if _, skip := addrs[address]; skip {
@@ -32,8 +38,9 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs []
 		}
 		nodes = append(nodes, iNodes...)
 	}
-	strNodes := mndapp.FormatNodes(nodes)
-	_, err := discordSend(discord, channelID, strNodes, true)
+	txt = mndapp.FormatNodes(nodes)
+SendMessage:
+	_, err := discordSend(discord, channelID, txt, true)
 	logErrorTS(debugTag, err)
 }
 
@@ -93,7 +100,7 @@ func checkPayout(discord *discordgo.Session) {
 	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
 	tag := "] [NotPayout"
 	rp := mndapp.RewardPool
-	if true { //rp.Minted > minted || minted == 0 {
+	if rp.Minted > minted || minted == 0 {
 		// Previously retrieved balance is higher than current
 		// => means pool has been reset and payout occured
 		tag = "] [Payout"
@@ -140,7 +147,7 @@ func sendPayoutAlerts(discord *discordgo.Session, p client.Payout) {
 			channelID,
 			"Delicious payout is served @here!```js\n"+
 				p.Format()+"``````fix\nPS: Actual amount received may be slightly higher "+
-				"due to the tier distribution returned by API includes deposited nodes.",
+				"due to the tier distribution returned by API includes deposited nodes!```",
 			false)
 		if err != nil {
 			logTS("PayoutAlert", fmt.Sprintf("Payout Alert Failed! Channel ID: %s, Name: %s", channelID, name))

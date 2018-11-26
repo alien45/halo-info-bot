@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -16,7 +15,7 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 	var err error
 	if numArgs == 0 {
 		if len(addresses) == 0 {
-			txt = "No addresses found!"
+			txt = "No addresses available!"
 			goto SendMessage
 		}
 		// Reply all addresses by user
@@ -32,7 +31,6 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 			goto SendMessage
 		}
 		addresses = append(addresses, cmdArgs[1:]...)
-		data.AddressBook[user] = addresses
 		saveFile = true
 		break
 	case "remove":
@@ -41,22 +39,21 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 		for i := 0; i < len(addresses); i++ {
 			remove := false
 			for a := 1; a < len(cmdArgs); a++ {
-				fmt.Println(addresses[i], cmdArgs[a], addresses[i] != cmdArgs[a])
 				if addresses[i] == cmdArgs[a] {
 					remove = true
 				}
 			}
 			if !remove {
 				tempAddresses = append(tempAddresses, addresses[i])
-			} else {
-				saveFile = true
+				continue
 			}
+			saveFile = true
 		}
 		if !saveFile {
 			txt = "No changes made."
 			goto SendMessage
 		}
-		data.AddressBook[user] = tempAddresses
+		addresses = tempAddresses
 		break
 	default:
 		txt = "Invalid action. Supported actions: add, remove"
@@ -65,12 +62,24 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 	if !saveFile {
 		goto SendMessage
 	}
+
+	data.AddressBook[user] = []string{}
+	for i := 0; i < len(addresses); i++ {
+		if strings.TrimSpace(addresses[i]) == "" {
+			continue
+		}
+		data.AddressBook[user] = append(data.AddressBook[user], addresses[i])
+	}
 	err = saveDiscordFile()
 	if commandErrorIf(err, discord, channelID, "Failed to save changes!", debugTag) {
 		return
 	}
 	// Action success. Reply with modified list
-	txt = strings.Join(data.AddressBook[user], "\n")
+	if len(data.AddressBook[user]) == 0 {
+		txt = "Changes saved"
+		goto SendMessage
+	}
+	txt = "Saved addresses:\n" + strings.Join(data.AddressBook[user], "\n")
 SendMessage:
 	discordSend(discord, channelID, "\n"+txt, true)
 }

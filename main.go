@@ -21,14 +21,13 @@ var (
 	explorer        client.Explorer
 	etherscan       client.Etherscan
 	mndapp          client.MNDApp
-	addressKeywords = map[string]map[string]string{
-		"halo": {
-			// Halo Masternode reward pool
-			"reward-pool": "0xd674dd3cdf07139ffda85b8589f0e2ca600f996e",
-			// Charity address by the Halo Platform community
-			"charity": "0xaefaffa2272098b4ab6f9a87a76f25944aee746d",
-		},
-		"eth": {"h-eth": "0x70a41917365E772E41D404B3F7870CA8919b4fBe"}, // Ethereum address for H-ETH token
+	addressKeywords = map[string]string{
+		// Halo Masternode reward pool
+		"reward-pool": "0xd674dd3cdf07139ffda85b8589f0e2ca600f996e",
+		// Charity address by the Halo Platform community
+		"charity": "0xaefaffa2272098b4ab6f9a87a76f25944aee746d",
+		// Ethereum address for H-ETH token
+		"h-eth": "0x70a41917365E772E41D404B3F7870CA8919b4fBe",
 	}
 	// Commands names that are not allowed in the public chats. Key: command, value: unused.
 	privateCmds     = map[string]string{}
