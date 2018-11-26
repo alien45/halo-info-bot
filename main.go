@@ -88,6 +88,8 @@ func main() {
 	}
 
 	cmc = conf.Client.CMC
+	// Pre-cache CMC tickers
+	cmc.GetTicker("eth")
 	dex = conf.Client.DEX
 	etherscan = conf.Client.Etherscan
 	explorer = conf.Client.Explorer

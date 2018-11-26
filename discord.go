@@ -38,25 +38,32 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 	cmdArgs := strings.Split(message.Content, " ")
 	command := strings.ToLower(strings.TrimPrefix(cmdArgs[0], commandPrefix))
-	if _, found := supportedCommands[command]; !found {
+	cmcTicker, err := cmc.FindTicker(command)
+	if _, found := supportedCommands[command]; !found && err != nil {
 		// Ignore invalid commands on public channels
 		if isPrivateMsg {
-			_, err := discordSend(discord, channelID,
+			_, err = discordSend(discord, channelID,
 				"Invalid command! Need help? Use the following command:```!help```", false)
 			logErrorTS(debugTag, err)
 		}
-		return
-	}
-	if _, found := privateCmds[command]; found && !isPrivateMsg {
-		// Private command requested from a channel/server
-		_, err := discordSend(discord, channelID, "Private commands are not allowed in public channels.", true)
-		logErrorTS(debugTag, err)
 		return
 	}
 	cmdArgs = cmdArgs[1:]
 	numArgs := len(cmdArgs)
 	if numArgs == 0 {
 		cmdArgs = []string{}
+	}
+	if err == nil {
+		// CMC ticker command invoked | !eth, !btc....
+		command = "cmc"
+		cmdArgs = append(cmdArgs, cmcTicker.Symbol)
+		numArgs = 1
+	}
+	if _, found := privateCmds[command]; found && !isPrivateMsg {
+		// Private command requested from a channel/server
+		_, err := discordSend(discord, channelID, "Private commands are not allowed in public channels.", true)
+		logErrorTS(debugTag, err)
+		return
 	}
 
 	debugTag = "cmd] [" + command
@@ -68,18 +75,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			text = "css\n" + helpTextPrivate
 		}
 		discordSend(discord, channelID, text, true)
-		break
-	case "cmc":
-		// Handle CoinMarketCap related commands
-		nameOrSymbol := strings.ToUpper(strings.Join(cmdArgs, " "))
-		ticker, err := cmc.GetTicker(nameOrSymbol)
-		if commandErrorIf(err, discord, channelID, "Ticker not found or query failed.", debugTag) {
-			return
-		}
-
-		_, err = discordSend(discord, channelID, ticker.Format(), true)
-		commandErrorIf(err, discord, channelID, "Failed to retrieve CMC ticker for "+nameOrSymbol, debugTag)
-		logErrorTS(debugTag, err)
 		break
 	case "balance":
 		address := ""
@@ -157,6 +152,20 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		cmdDexTicker(discord, channelID, debugTag, []string{}, 0)
 		cmdMN(discord, channelID, debugTag, []string{}, 0)
 		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, 3, "trades")
+		break
+	case strings.ToLower(cmcTicker.Symbol):
+		fallthrough
+	case "cmc":
+		// Handle CoinMarketCap related commands
+		nameOrSymbol := strings.ToUpper(strings.Join(cmdArgs, " "))
+		ticker, err := cmc.GetTicker(nameOrSymbol)
+		if commandErrorIf(err, discord, channelID, "Ticker not found or query failed.", debugTag) {
+			return
+		}
+
+		_, err = discordSend(discord, channelID, ticker.Format(), true)
+		commandErrorIf(err, discord, channelID, "Failed to retrieve CMC ticker for "+nameOrSymbol, debugTag)
+		logErrorTS(debugTag, err)
 		break
 	case "alert":
 		// Enable/disable alerts. For personal chat. Possibly for channels as well but should only be setup by admins
