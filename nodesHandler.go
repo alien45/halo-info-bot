@@ -48,35 +48,6 @@ SendMessage:
 }
 
 func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {
-	// 	text := ""
-	// 	var t1, t2, t3, t4 float64
-	// 	var err error
-	// 	if numArgs > 0 && strings.ToLower(cmdArgs[0]) == "info" {
-	// 		text, err = mndapp.GetMNFormattedInfo(0)
-	// 		if commandErrorIf(err, discord, channelID, "Failed to retrieve info", debugTag) {
-	// 			return
-	// 		}
-	// 		goto SendMessage
-	// 	}
-
-	// 	if numArgs > 0 && strings.ToLower(cmdArgs[0]) == "last" {
-	// 		// Send last payout data
-	// 		p := mndapp.LastPayout
-	// 		if p.Total == 0 {
-	// 			text = "Data not available!"
-	// 			goto SendMessage
-	// 		}
-	// 		text = "------------------Last Payout-------------------\n" + p.Format()
-	// 		goto SendMessage
-	// 	}
-
-	// 	t1, t2, t3, t4, err = mndapp.GetAllTierDistribution()
-	// 	if commandErrorIf(err, discord, channelID, "Failed to retrieve tier distribution", debugTag) {
-	// 		return
-	// 	}
-	// 	// Send payout in progress data and tier distribution
-	// 	text = mndapp.FormatMNPoolRewardData(mndapp.RewardPool.Minted, mndapp.RewardPool.Fees, t1, t2, t3, t4)
-	// SendMessage:
 	txt, err := mndapp.GetFormattedMNInfo()
 	_, err = discordSend(discord, channelID, "js\n"+txt, true)
 	logErrorTS(debugTag, err)
@@ -125,14 +96,15 @@ func checkPayout(discord *discordgo.Session) {
 			p.Tiers["t3"],
 			p.Tiers["t4"],
 			p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
-		go sendPayoutAlerts(discord, p)
 
 		// update last payout details to config file
 		data.LastPayout = mndapp.LastPayout
 		err = saveDiscordFile()
 		if err != nil {
-			logTS(debugTag, fmt.Sprintf("Failed to save Payout Data: %+v", p))
+			logTS(debugTag+"] [File", fmt.Sprintf("Failed to save Payout Data to %s: %+v", discordFile, p, " | [Error]: ", err))
 		}
+
+		go sendPayoutAlerts(discord, p)
 	}
 	logTS(debugTag+tag, fmt.Sprintf(
 		" Total: %f | Minted: %f | Fees: %f | ApproxTime: %s",

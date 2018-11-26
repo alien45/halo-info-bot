@@ -286,10 +286,11 @@ func commandHelpText(commandName string) (s string) {
 // TODO: Use json config file or leave as is??
 var supportedCommands = map[string]Command{
 	"help": Command{
-		Description: "Prints this message",
-		Arguments:   "[command-name]",
-		IsPublic:    true,
-		Example:     "!help OR, !help balance",
+		Description: "Prints list of commands and supported arguments. If argument 'command' is " +
+			"provided will display detailed information about the command along with examples.",
+		Arguments: "[command-name]",
+		IsPublic:  true,
+		Example:   "!help OR, !help balance",
 	},
 	"trades": Command{
 		Description: "Recent trades from HaloDEX",

@@ -246,61 +246,6 @@ func (m *MNDApp) GetAllTierDistribution() (t1, t2, t3, t4 float64, err error) {
 	return
 }
 
-// FormatMNPoolRewardData formats Halo masternode reward pool and node distribution information into presentable text
-func (m MNDApp) FormatMNPoolRewardData(minted, fees, t1, t2, t3, t4 float64) string {
-	t1r, t2r, t3r, t4r, _ := m.CalcReward(m.BlockReward*1440/m.BlockTimeMins, fees, t1, t2, t3, t4)
-	minutes := int(minted / m.BlockReward * m.BlockTimeMins)
-	duration := fmt.Sprintf("%02d:%02d", int(minutes/60), minutes%60)
-	return fmt.Sprintf("--------------------------24hr Reward Estimate--\n"+
-		"Reward Pool      |Tier|Filld|  Per MN | Per 500\n"+DashLine+
-		"Minted : %s|  1 | %.0f | %s  | %.4f\n"+DashLine+
-		"Fees   : %s|  2 | %.0f | %s  | %.4f\n"+DashLine+
-		"Total  : %s|  3 | %.0f | %s  | %.4f\n"+DashLine+
-		"Elapsed: %s   |  4 | %.0f | %s  | %.4f\n",
-		FillOrLimit(fmt.Sprintf("%.0f", minted), " ", 8), t1, FillOrLimit(t1r, " ", 6), t1r,
-		FillOrLimit(fmt.Sprintf("%.4f", fees), " ", 8), t2, FillOrLimit(t2r/2, " ", 6), t2r/2,
-		FillOrLimit(fmt.Sprintf("%.4f", minted+fees), " ", 8), t3, FillOrLimit(t3r/5, " ", 6), t3r/5,
-		duration, t4, FillOrLimit(t4r/15, " ", 6), t4r/15)
-}
-
-// GetMNFormattedInfo returns formatted string with masternode tiers and their collateral requirement
-func (m MNDApp) GetMNFormattedInfo(serviceFees float64) (s string, err error) {
-	t1, t2, t3, t4, err := m.GetAllTierDistribution()
-	if err != nil {
-		return
-	}
-	dailyMinted := m.BlockReward * (1440 / m.BlockTimeMins)
-	t1r, t2r, t3r, t4r, _ := m.CalcReward(dailyMinted, serviceFees, t1, t2, t3, t4)
-	t1roi := t1r / m.Collateral["t1"] * 365 * 100
-	t2roi := t2r / m.Collateral["t2"] * 365 * 100
-	t3roi := t3r / m.Collateral["t3"] * 365 * 100
-	t4roi := t4r / m.Collateral["t4"] * 365 * 100
-	fmt.Println("ROI: ", t1roi, t2roi, t3roi, t4roi)
-
-	t1str := fmt.Sprintf("  1  |  %.0f | 5000  | %s | %s | %s%%\n", m.Collateral["t1"],
-		FillOrLimit(t1r, " ", 6), FillOrLimit(t1r, " ", 6), FillOrLimit(t1roi, " ", 6))
-
-	t2str := fmt.Sprintf("  2  | %.0f | 4000  | %s | %s | %s%%\n", m.Collateral["t2"],
-		FillOrLimit(t2r, " ", 6), FillOrLimit(t2r/2, " ", 6), FillOrLimit(t2roi, " ", 6))
-
-	t3str := fmt.Sprintf("  3  | %.0f | 1000  | %s | %s | %s%%\n", m.Collateral["t3"],
-		FillOrLimit(t3r, " ", 6), FillOrLimit(t3r/5, " ", 6), FillOrLimit(t3roi, " ", 6))
-
-	t4str := fmt.Sprintf("  4  | %.0f |  500  | %s | %s | %s%%\n", m.Collateral["t4"],
-		FillOrLimit(t4r, " ", 6), FillOrLimit(t4r/15, " ", 6), FillOrLimit(t4roi, " ", 6))
-
-	s = "--- Collateral ------- ROI/Day in Halo ---------\n" +
-		"Tier | Halo | Max MN | PerMN | Per500 | Per Year\n" + DashLine +
-		t1str + DashLine +
-		t2str + DashLine +
-		t3str + DashLine +
-		t4str + DashLine
-
-	// New format
-
-	return
-}
-
 // GetFormattedMNInfo returns formatted string with masternode tiers and their collateral requirement
 func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 	minted, err := m.GetMintedBalance()
@@ -337,7 +282,7 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 		FillOrLimit(l.Tiers["t3"], " ", 6),
 		FillOrLimit(l.Tiers["t4"], " ", 6),
 	)
-	s += fmt.Sprintf("               _______\n"+
+	s += fmt.Sprintf("                _______\n"+
 		"_______________/Per 500\\________________\n"+
 
 		"%s  | %s  | %s  | %s\n",
@@ -359,8 +304,8 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 		FillOrLimit(t3DailyROI, " ", 6),
 		FillOrLimit(t4DailyROI, " ", 6),
 	)
-	s += fmt.Sprintf("               ________\n"+
-		"______________/ROI/Year\\_______________\n"+
+	s += fmt.Sprintf("                ________\n"+
+		"_______________/ROI/Year\\_______________\n"+
 		"%s%% | %s%%  | %s%%  | %s%%\n",
 		FillOrLimit(t1DailyROI*365, " ", 6),
 		FillOrLimit(t2DailyROI*365, " ", 6),
@@ -380,7 +325,7 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 		FillOrLimit(fmt.Sprintf("%.0f", t3), " ", 7),
 		FillOrLimit(fmt.Sprintf("%.0f", t4), " ", 7),
 	)
-	s += fmt.Sprintf("              ____________\n"+
+	s += fmt.Sprintf("               __________\n"+
 		"______________/Collateral\\______________\n"+
 		"%s | %s | %s | %s\n",
 		FillOrLimit(m.Collateral["t1"], " ", 7),
