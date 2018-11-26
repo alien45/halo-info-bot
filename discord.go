@@ -156,7 +156,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 				text = "css\n" + helpTextPrivate
 			}
 			discordSend(discord, channelID, text, true)
-			break
+			return
 		}
 		fallthrough
 	case "cmc":
