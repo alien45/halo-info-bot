@@ -39,25 +39,24 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	cmdArgs := strings.Split(message.Content, " ")
 	command := strings.ToLower(strings.TrimPrefix(cmdArgs[0], commandPrefix))
 	cmcTicker, err := cmc.FindTicker(command)
-	if _, found := supportedCommands[command]; !found && err != nil {
+	_, found := supportedCommands[command]
+	if !found {
 		// Ignore invalid commands on public channels
-		if isPrivateMsg {
+		if isPrivateMsg && err != nil {
 			_, err = discordSend(discord, channelID,
 				"Invalid command! Need help? Use the following command:```!help```", false)
 			logErrorTS(debugTag, err)
+			return
 		}
-		return
+		// CMC ticker command invoked | !eth, !btc....
+		command = "cmc"
+		cmdArgs = append(cmdArgs, cmcTicker.Symbol)
 	}
+
 	cmdArgs = cmdArgs[1:]
 	numArgs := len(cmdArgs)
 	if numArgs == 0 {
 		cmdArgs = []string{}
-	}
-	if err == nil {
-		// CMC ticker command invoked | !eth, !btc....
-		command = "cmc"
-		cmdArgs = append(cmdArgs, cmcTicker.Symbol)
-		numArgs = 1
 	}
 	if _, found := privateCmds[command]; found && !isPrivateMsg {
 		// Private command requested from a channel/server
@@ -69,6 +68,13 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	debugTag = "cmd] [" + command
 	logTS(debugTag, fmt.Sprintf("Author: %s, ChannelID: %s, Message: %s", message.Author, message.ChannelID, message.Content))
 	switch command {
+	case "help":
+		text := "css\n" + helpText
+		if isPrivateMsg {
+			text = "css\n" + helpTextPrivate
+		}
+		discordSend(discord, channelID, text, true)
+		break
 	case "balance":
 		address := ""
 		txt := ""
@@ -146,21 +152,9 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		cmdMN(discord, channelID, debugTag, []string{}, 0)
 		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, 3, "trades")
 		break
-	case "help":
-		// Help text
-		fallthrough
 	case strings.ToLower(cmcTicker.Symbol):
-		if command == "help" {
-			text := "css\n" + helpText
-			if isPrivateMsg {
-				text = "css\n" + helpTextPrivate
-			}
-			discordSend(discord, channelID, text, true)
-			return
-		}
 		fallthrough
 	case "cmc":
-
 		// Handle CoinMarketCap related commands
 		nameOrSymbol := strings.ToUpper(strings.Join(cmdArgs, " "))
 		ticker, err := cmc.GetTicker(nameOrSymbol)
