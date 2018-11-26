@@ -39,6 +39,12 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	cmdArgs := strings.Split(message.Content, " ")
 	command := strings.ToLower(strings.TrimPrefix(cmdArgs[0], commandPrefix))
 	if _, found := supportedCommands[command]; !found {
+		// Ignore invalid commands on public channels
+		if isPrivateMsg {
+			_, err := discordSend(discord, channelID,
+				"Invalid command! Need help? Use the following command:```!help```", false)
+			logErrorTS(debugTag, err)
+		}
 		return
 	}
 	if _, found := privateCmds[command]; found && !isPrivateMsg {

@@ -149,7 +149,7 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 		}
 	}
 
-	summary = fmt.Sprintf("============Summary============\n"+
+	summary = fmt.Sprintf("=========Summary=========\n"+
 		"Total Halo Invested: %.0f\n"+
 		"Total Active: %.0f\n"+
 		"Total Inactive: %.0f\n",
