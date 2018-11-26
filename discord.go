@@ -69,13 +69,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	debugTag = "cmd] [" + command
 	logTS(debugTag, fmt.Sprintf("Author: %s, ChannelID: %s, Message: %s", message.Author, message.ChannelID, message.Content))
 	switch command {
-	case "help":
-		text := "css\n" + helpText
-		if isPrivateMsg {
-			text = "css\n" + helpTextPrivate
-		}
-		discordSend(discord, channelID, text, true)
-		break
 	case "balance":
 		address := ""
 		txt := ""
@@ -153,9 +146,21 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		cmdMN(discord, channelID, debugTag, []string{}, 0)
 		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, 3, "trades")
 		break
+	case "help":
+		// Help text
+		fallthrough
 	case strings.ToLower(cmcTicker.Symbol):
+		if command == "help" {
+			text := "css\n" + helpText
+			if isPrivateMsg {
+				text = "css\n" + helpTextPrivate
+			}
+			discordSend(discord, channelID, text, true)
+			break
+		}
 		fallthrough
 	case "cmc":
+
 		// Handle CoinMarketCap related commands
 		nameOrSymbol := strings.ToUpper(strings.Join(cmdArgs, " "))
 		ticker, err := cmc.GetTicker(nameOrSymbol)
