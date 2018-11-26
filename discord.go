@@ -257,8 +257,8 @@ func generateHelpText(supportedCommands map[string]Command, publicOnly bool) (s 
 	s += "\n<argument> => required"
 	s += "\n[argument] => optional"
 	s += "\n{argument} => indicates exact value"
-	s += "\n\nDefaults where applicable:\n  base ticker => ETH,\n  quote ticker => Halo\n" +
-		"Address => first/all item(s) saved on address book, if avaiable"
+	s += "\n\nDefaults where applicable:\n  Base ticker => ETH,\n  Quote ticker => Halo\n" +
+		"Address(es) => first/all item(s) saved on address book, if avaiable"
 	return
 }
 
@@ -272,7 +272,7 @@ var supportedCommands = map[string]Command{
 		Description: "Recent trades from HaloDEX",
 		IsPublic:    true,
 		Arguments:   "[quote-symbol] [base-symbol] [limit]",
-		Example:     "!trades halo eth 10",
+		Example:     "!trades halo eth 10 OR, !trades",
 	},
 	"ticker": Command{
 		Description: "Get ticker information from HaloDEX.",
@@ -281,16 +281,19 @@ var supportedCommands = map[string]Command{
 		Example:     "!ticker OR !ticker vet OR, !ticker dbet eth",
 	},
 	"cmc": Command{
-		Description: "Fetch CoinMarketCap tickers",
+		Description: "Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command.",
 		IsPublic:    true,
 		Arguments:   "<symbol>",
-		Example:     "!cmc btc OR, !cmc bitcoin cash",
+		Example:     "!cmc powr, OR, !cmc power ledger, OR !powr (shorthand for '!cmc powr')",
 	},
 	"balance": Command{
-		Description: "Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward pool', 'charity', 'h-eth'.",
-		IsPublic:    true,
-		Arguments:   "<address> [ticker]",
-		Example:     "!balance 0x1234567890abcdef",
+		Description: "Check your account balance. Supported addresses/chains: HALO & ETH. " +
+			"Address keywords: 'reward pool', 'charity', 'h-eth'." +
+			" If not address supplied, the first item of user's address book will be used. " +
+			"To get balance of a specific item from address book just type the index number of the address.",
+		IsPublic:  true,
+		Arguments: "[address] [ticker]",
+		Example:   "!balance 0x1234567890abcdef OR !balance OR, !balance 2 (for 2nd item in address book)",
 	},
 	"tokens": Command{
 		Description: "Lists all tokens supported on HaloDEX",
@@ -299,34 +302,32 @@ var supportedCommands = map[string]Command{
 		Example:     "!tokens OR, !tokens halo",
 	},
 	"mn": Command{
-		Description: "Masternode reward pool and nodes distribution information. Or get masternode collateral info.",
+		Description: "Shows rasternode reward pool, nodes distribution, last payout and ROI based on last payout. Or get masternode collateral info.",
 		IsPublic:    true,
-		Arguments:   "[{info}]",
-		Example:     "!mn OR, !mn info",
 	},
 	"halo": Command{
 		Description: "Get a digest of information about Halo.",
 		IsPublic:    true,
-		Example:     "!halo, !vet",
+		Example:     "!halo",
 	},
 
 	// Private Commands
 	"nodes": Command{
 		Description: "Lists masternodes owned by a specific address",
 		IsPublic:    false,
-		Arguments:   "<address> [address2] [address3....]",
+		Arguments:   "[address] [address2] [address3....]",
 		Example:     "!nodes 0x1234567890abcdef",
 	},
 	"dexbalance": Command{
-		Description: "Check your DEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
+		Description: "Shows user's HaloDEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
 		IsPublic:    false,
-		Arguments:   "<address> [{0} or [ticker ticker2 ticker3...]]",
+		Arguments:   "[address] [{0} or [ticker ticker2 ticker3...]]",
 		Example:     "!dexbalance 0x123... 0 OR, !dexbalance 0x123... ETH",
 	},
 	"orders": Command{
 		Description: "Get HaloDEX orders by user address.",
 		IsPublic:    false,
-		Arguments:   "<quote-ticker> <base-ticker> <limit> <address>",
+		Arguments:   "[quote-ticker] [base-ticker] [limit] [address]",
 		Example:     "!orders halo eth 10 0x1234567890abcdef",
 	},
 	"address": Command{
