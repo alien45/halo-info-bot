@@ -97,11 +97,11 @@ func (m Masternode) Format() string {
 	}
 	mlen := len(m.Address)
 	return fmt.Sprintf(
-		"%s | %s |   %d  |  %s  | %s\n",
+		"%s | %s |  %d | %s | %s\n",
 		colorSign,
 		m.Address[:6]+"..."+m.Address[mlen-6:],
 		m.Tier,
-		FillOrLimit(fmt.Sprintf("%.0f", m.Shares/1e18), " ", 7),
+		FillOrLimit(fmt.Sprintf("%.0f", m.Shares), " ", 7),
 		status,
 	)
 }
@@ -120,19 +120,45 @@ func (m *MNDApp) GetMasternodes(ownerAddress string) (nodes []Masternode, err er
 
 	err = json.NewDecoder(response.Body).Decode(&result)
 	nodes = result.Result
+	for i := 0; i < len(nodes); i++ {
+		nodes[i].Shares /= 1e18
+	}
 	return
 }
 
 // FormatNodes formats a list of nodes in to table-like string
-func (MNDApp) FormatNodes(nodes []Masternode) (s string) {
-	if len(nodes) == 0 {
-		s = "No masternodes available"
+func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
+	num := len(nodes)
+	if num == 0 {
+		list = "No masternodes available"
 		return
 	}
 
-	s = "diff\n      Address          | Tier |  Shares   | Status\n" + DashLine
-	for i := 0; i < len(nodes); i++ {
-		s += nodes[i].Format() + DashLine
+	tierShareCount := map[int64]float64{}
+	totalInvested := float64(0)
+	inactive := float64(0)
+
+	list = "    Address         |Tier|  Shares   | Status\n" + DashLine
+	for i := 0; i < num; i++ {
+		n := nodes[i]
+		list += n.Format() + DashLine
+		tierShareCount[n.Tier] += n.Shares
+		totalInvested += n.Shares
+		if n.State != 3 {
+			inactive += n.Shares
+		}
+	}
+
+	summary = fmt.Sprintf("============Summary============\n"+
+		"Total Halo Invested: %.0f\n"+
+		"Total Active: %.0f\n"+
+		"Total Inactive: %.0f\n",
+		totalInvested,
+		totalInvested-inactive,
+		inactive)
+	for i := int64(1); i <= 4; i++ {
+		count, _ := tierShareCount[i]
+		summary += fmt.Sprintf("Tier %d: %.0f\n", i, count)
 	}
 	return
 }

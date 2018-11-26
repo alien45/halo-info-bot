@@ -14,6 +14,7 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 	addrs := map[string]int{}
 	nodes := []client.Masternode{}
 	txt := ""
+	list := ""
 
 	if numArgs == 0 {
 		// No address supplied
@@ -38,7 +39,9 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 		}
 		nodes = append(nodes, iNodes...)
 	}
-	txt = mndapp.FormatNodes(nodes)
+	list, txt = mndapp.FormatNodes(nodes)
+	// separate summary and list into two code blocks
+	txt = "diff\n" + list + "``````js\n" + txt
 SendMessage:
 	_, err := discordSend(discord, channelID, txt, true)
 	logErrorTS(debugTag, err)
