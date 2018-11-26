@@ -133,7 +133,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	case "orders":
 		fallthrough
 	case "trades":
-		cmdDexTrades(discord, channelID, debugTag, cmdArgs, numArgs, command)
+		cmdDexTrades(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses, command)
 		break
 	case "dexbalance": // Private Command
 		cmdDexBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
@@ -150,7 +150,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	case "halo":
 		cmdDexTicker(discord, channelID, debugTag, []string{}, 0)
 		cmdMN(discord, channelID, debugTag, []string{}, 0)
-		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, 3, "trades")
+		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, userAddresses, 3, numAddresses, "trades")
 		break
 	case strings.ToLower(cmcTicker.Symbol):
 		fallthrough
@@ -257,7 +257,8 @@ func generateHelpText(supportedCommands map[string]Command, publicOnly bool) (s 
 	s += "\n<argument> => required"
 	s += "\n[argument] => optional"
 	s += "\n{argument} => indicates exact value"
-	s += "\n\nDefaults where applicable:\n  base ticker => ETH,\n  quote ticker => Halo"
+	s += "\n\nDefaults where applicable:\n  base ticker => ETH,\n  quote ticker => Halo\n" +
+		"Address => first/all item(s) saved on address book, if avaiable"
 	return
 }
 

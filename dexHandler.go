@@ -138,10 +138,11 @@ func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArg
 	commandErrorIf(err, discord, channelID, "Something went wrong!", debugTag)
 }
 
-func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int, command string) {
+func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArgs, userAddresses []string, numArgs, numAddresses int, command string) {
 	//TODO: swap base-quote if wrong direction provided. Cache available pairs from DEX for this.
 	//TODO: add argument for timezone or allow user to save timezone??
 	tokenAddresses, err := dex.GetTokens()
+	address := ""
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
 		return
 	}
@@ -174,10 +175,13 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 	dataStr := ""
 	if command == "orders" {
 		if numArgs < 4 {
-			discordSend(discord, channelID, "Address required.", true)
-			return
+			if numAddresses == 0 {
+				discordSend(discord, channelID, "Address required.", true)
+				return
+			}
+			address = userAddresses[0]
 		}
-		orders, errO := dex.GetOrders(quoteAddr, baseAddr, limit, cmdArgs[3])
+		orders, errO := dex.GetOrders(quoteAddr, baseAddr, limit, address)
 		err = errO
 		logErrorTS(debugTag, err)
 		dataStr = dex.FormatOrders(orders)
