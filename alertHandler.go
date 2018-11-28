@@ -6,7 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func cmdAlert(discord *discordgo.Session, channelID, username, debugTag string, cmdArgs []string, numArgs int) {
+func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, debugTag string, cmdArgs []string, numArgs int) {
 	// Enable/disable alerts. For personal chat. Possibly for channels as well but should only be setup by admins
 	// TODO: dex status notification // using realtime API
 	// TODO: feather update notification

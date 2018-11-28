@@ -23,11 +23,7 @@ type Command struct {
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate, commandPrefix string) {
 	user := message.Author
-	username := fmt.Sprint(message.Author)
-	userAddresses := data.AddressBook[username]
-	numAddresses := len(userAddresses)
 	channelID := message.ChannelID
-	debugTag := "commandHandler"
 	isPrivateMsg := message.GuildID == "" || data.PrivacyExceptions[channelID] != ""
 	hasPrefix := strings.HasPrefix(message.Content, commandPrefix)
 	if user.ID == botID || user.Bot || (!isPrivateMsg && !hasPrefix) {
@@ -35,6 +31,10 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		return
 	}
 
+	username := fmt.Sprint(message.Author)
+	userAddresses := data.AddressBook[username]
+	numAddresses := len(userAddresses)
+	debugTag := "commandHandler"
 	cmdArgs := strings.Split(message.Content, " ")
 	command := strings.ToLower(strings.TrimPrefix(cmdArgs[0], commandPrefix))
 	cmcTicker, err := cmc.FindTicker(command)
@@ -45,6 +45,8 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			_, err = discordSend(discord, channelID,
 				"Invalid command! Need help? Use the following command:```!help```", false)
 			logErrorTS(debugTag, err)
+			return
+		} else if cmcTicker.Symbol == "" {
 			return
 		}
 		// CMC ticker command invoked | !eth, !btc....
@@ -111,8 +113,12 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, userAddresses, 3, numAddresses, "trades")
 		break
-	case strings.ToLower(cmcTicker.Symbol):
-		fallthrough
+	// case strings.ToLower(cmcTicker.Symbol):
+	// 	fmt.Println()
+	// 	if cmcTicker.Symbol == "" {
+	// 		break
+	// 	}
+	// 	fallthrough
 	case "cmc":
 		// Handle CoinMarketCap related commands
 		nameOrSymbol := strings.ToUpper(strings.Join(cmdArgs, " "))
@@ -126,7 +132,18 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		break
 	case "alert":
-		cmdAlert(discord, channelID, username, debugTag, cmdArgs, numArgs)
+		if message.GuildID != "" {
+			// Public channel. Admin role required
+			isAdmin, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 8)
+			canManageChannels, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 16)
+			canManageServer, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 32)
+			if isAdmin || canManageChannels || canManageServer {
+				_, err = discordSend(discord, channelID, "Sorry, you are not allowed to enable alerts on this channel.", true)
+				logErrorTS(debugTag, err)
+				return
+			}
+		}
+		cmdAlert(discord, message.GuildID, channelID, message.Author.ID, username, debugTag, cmdArgs, numArgs)
 		break
 	case "address":
 		cmdAddress(discord, channelID, fmt.Sprint(message.Author), debugTag, cmdArgs, numArgs)
@@ -317,4 +334,28 @@ var supportedCommands = map[string]Command{
 		Arguments:   "<type> [action]",
 		Example:     "!alert payout on",
 	},
+}
+
+// MemberHasPermission ....
+func MemberHasPermission(s *discordgo.Session, guildID string, userID string, permission int) (bool, error) {
+	member, err := s.State.Member(guildID, userID)
+	if err != nil {
+		if member, err = s.GuildMember(guildID, userID); err != nil {
+			return false, err
+		}
+	}
+
+	// Iterate through the role IDs stored in member.Roles
+	// to check permissions
+	for _, roleID := range member.Roles {
+		role, err := s.State.Role(guildID, roleID)
+		if err != nil {
+			return false, err
+		}
+		if role.Permissions&permission != 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
