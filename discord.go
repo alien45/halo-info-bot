@@ -132,16 +132,18 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		break
 	case "alert":
-		if message.GuildID != "" {
+		if message.GuildID != "" && username != conf.Client.DiscordBot.RootUser {
 			// Public channel. Admin role required
-			isAdmin, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 8)
-			canManageChannels, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 16)
-			canManageServer, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 32)
-			if isAdmin || canManageChannels || canManageServer {
-				_, err = discordSend(discord, channelID, "Sorry, you are not allowed to enable alerts on this channel.", true)
-				logErrorTS(debugTag, err)
-				return
-			}
+			// isAdmin, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 8)
+			// canManageChannels, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 16)
+			// canManageServer, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 32)
+			// fmt.Println(isAdmin, canManageChannels, canManageServer)
+			// fmt.Println(discord.State.UserChannelPermissions(message.Author.ID, channelID))
+			// if !isAdmin && !canManageChannels && !canManageServer {
+			_, err = discordSend(discord, channelID, "Sorry, you are not allowed to manage alerts on this channel.", true)
+			logErrorTS(debugTag, err)
+			return
+			// }
 		}
 		cmdAlert(discord, message.GuildID, channelID, message.Author.ID, username, debugTag, cmdArgs, numArgs)
 		break
@@ -339,6 +341,7 @@ var supportedCommands = map[string]Command{
 // MemberHasPermission ....
 func MemberHasPermission(s *discordgo.Session, guildID string, userID string, permission int) (bool, error) {
 	member, err := s.State.Member(guildID, userID)
+
 	if err != nil {
 		if member, err = s.GuildMember(guildID, userID); err != nil {
 			return false, err

@@ -13,8 +13,8 @@ const configFile = "./config.json"
 const discordFile = "./discord.json"
 
 var (
-	botID string
-	//config          Config
+	botID           string
+	conf            Config
 	data            DiscordData
 	cmc             client.CMC
 	dex             client.DEX
@@ -68,7 +68,6 @@ func main() {
 	// Load configuration file
 	configStr, err := client.ReadFile(configFile)
 	panicIf(err, "Failed to read config file")
-	conf := Config{}
 	err = json.Unmarshal([]byte(configStr), &conf)
 	panicIf(err, "Failed to load "+configFile+" file")
 
