@@ -41,7 +41,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	_, found := supportedCommands[command]
 	if !found {
 		// Ignore invalid commands on public channels
-		if isPrivateMsg && err != nil {
+		if isPrivateMsg && err != nil && message.GuildID == "" {
 			_, err = discordSend(discord, channelID,
 				"Invalid command! Need help? Use the following command:```!help```", false)
 			logErrorTS(debugTag, err)
