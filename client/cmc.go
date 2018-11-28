@@ -38,16 +38,16 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 	// Use cache if available and not expired
 	if cmc.DailyCreditUsed == cmc.DailyCreditLimit || (len(cachedCMCTickers) > 0 &&
 		time.Now().Sub(cmc.CacheLastUpdated).Minutes() < cmc.CacheExpireMins) {
-		fmt.Println("Using cached tickers")
+		fmt.Println(NowTS(), " [CMC] [GetTicker] Using cached tickers")
 		return cmc.FindTicker(nameOrSymbol)
 	}
 	// Cache expired. Update cache
-	fmt.Println("Updating CMC tickers cache from: ", tickerURL)
 	if cmc.APIKEY == "" {
 		err = errors.New("Missing CMC API Key")
 		return
 	}
 
+	fmt.Println(NowTS(), " [CMC] [GetTicker] Updating CMC tickers cache from: ", tickerURL)
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", tickerURL, nil)
 	if err != nil {
@@ -98,11 +98,9 @@ func (cmc *CMC) FindTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 		ticker = t
 		return
 	}
-
 	// check if name provided
-	nameOrSymbol = strings.ToLower(nameOrSymbol)
 	for _, t := range cachedCMCTickers {
-		if strings.ToLower(t.Name) == nameOrSymbol {
+		if strings.ToLower(t.Name) == strings.ToLower(nameOrSymbol) {
 			ticker = t
 			return
 		}

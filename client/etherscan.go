@@ -26,7 +26,7 @@ func (etherscan Etherscan) GetEthBalance(address string) (balance float64, err e
 		address,
 		etherscan.APIKey,
 	)
-	fmt.Println("Retrieving ethereum balance from Etherscan: ", url)
+	fmt.Println(NowTS(), " [Etherscan] [GetEthBalance] Retrieving ethereum balance from Etherscan: ", url)
 	response, err := http.Get(url)
 	if err != nil {
 		return 0, err

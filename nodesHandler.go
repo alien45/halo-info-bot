@@ -49,6 +49,9 @@ SendMessage:
 
 func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {
 	txt, err := mndapp.GetFormattedMNInfo()
+	if commandErrorIf(err, discord, channelID, "Failed to retrieve data", debugTag) {
+		return
+	}
 	_, err = discordSend(discord, channelID, "js\n"+txt, true)
 	logErrorTS(debugTag, err)
 }
@@ -68,14 +71,14 @@ func checkPayout(discord *discordgo.Session) {
 	debugTag := "CheckPayout"
 	minted, err := mndapp.GetMintedBalance()
 	if err != nil {
-		logTS(debugTag+"] [GetMintedBalance ", fmt.Sprint(err))
+		logTS(debugTag+"] [GetMintedBalance", fmt.Sprint("Minted: ", minted, "[Error]: ", err))
 		return
 	}
 	fees, err := mndapp.GetServiceFeesBalance()
 	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
 	tag := "] [NotPayout"
 	rp := mndapp.RewardPool
-	if rp.Minted > minted || minted == 0 {
+	if rp.Minted > minted || minted == 0 && rp.Minted != 0 {
 		// Previously retrieved balance is higher than current
 		// => means pool has been reset and payout occured
 		tag = "] [Payout"
@@ -98,7 +101,8 @@ func checkPayout(discord *discordgo.Session) {
 			p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
 
 		// update last payout details to config file
-		data.LastPayout = mndapp.LastPayout
+		mndapp.LastPayout = p
+		data.LastPayout = p
 		err = saveDiscordFile()
 		if err != nil {
 			logTS(debugTag+"] [File", fmt.Sprintf("Failed to save Payout Data to %s: %+v", discordFile, p, " | [Error]: ", err))
@@ -124,7 +128,7 @@ func sendPayoutAlerts(discord *discordgo.Session, p client.Payout) {
 		_, err := discordSend(
 			discord,
 			channelID,
-			"Delicious payout is served @here!```js\n"+
+			"Delicious payout is served!```js\n"+
 				p.Format()+"``````fix\nPS: Actual amount received may be slightly higher "+
 				"due to the tier distribution returned by API includes deposited nodes!```",
 			false)

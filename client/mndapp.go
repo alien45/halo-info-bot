@@ -43,19 +43,23 @@ type Payout struct {
 
 // Format returns payout data as strings
 func (p *Payout) Format() (s string) {
-	t1, t2, t3, t4 := p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"]
-	return fmt.Sprintf(""+
-		"Reward Pool (Halo)    | Tier | Per MN | Per 500\n"+DashLine+
-		"Minted   : %s |   1  | %s | %.4f\n"+DashLine+
-		"Fees     : %s |   2  | %s | %.4f\n"+DashLine+
-		"Total    : %s |   3  | %s | %.4f\n"+DashLine+
-		"Duration : %s      |   4  | %s | %.4f\n"+DashLine+
-		"Time     : %s UTC (approx.)\n"+DashLine,
-		FillOrLimit(fmt.Sprintf("%.0f", p.Minted), " ", 10), FillOrLimit(t1, " ", 6), t1,
-		FillOrLimit(fmt.Sprintf("%.8f", p.Fees), " ", 10), FillOrLimit(t2, " ", 6), t2/2,
-		FillOrLimit(fmt.Sprintf("%.8f", p.Total), " ", 10), FillOrLimit(t3, " ", 6), t3/5,
-		p.Duration, FillOrLimit(t4, " ", 6), t4/15,
-		p.Time.UTC().Format("2006-01-02 15:04"))
+	s = fmt.Sprintf("\n------------------Last Payout-------------------\n"+
+		"Minted : %s    | Fees     : %s\n"+DashLine+
+		"Total  : %s    | Duration : %s\n"+DashLine+
+		"Time   : %s UTC (approx.)\n",
+		FillOrLimit(p.Minted, " ", 10), FillOrLimit(p.Fees, " ", 10),
+		FillOrLimit(p.Total, " ", 10), p.Duration,
+		FillOrLimit(p.Time.UTC().String(), " ", 16),
+	)
+	s += fmt.Sprintf(DashLine+
+		"Tier 1     | Tier 2    | Tier 3    | Tier 4\n"+DashLine+
+		"%s     | %s    | %s    | %s\n"+DashLine,
+		FillOrLimit(p.Tiers["t1"], " ", 6),
+		FillOrLimit(p.Tiers["t2"], " ", 6),
+		FillOrLimit(p.Tiers["t3"], " ", 6),
+		FillOrLimit(p.Tiers["t4"], " ", 6),
+	)
+	return
 }
 
 // CalcReward calculates reward per masternode given minted coins, service fees and tier distribution
@@ -212,6 +216,27 @@ func (m MNDApp) GetMintedBalance() (balance float64, err error) {
 	return m.GetETHCallWeiToBalance("0xd674dd3cdf07139ffda85b8589f0e2ca600f996e", "0x405187f4")
 }
 
+// GetFormattedPoolData returns reward pool data including minting and service pool balances as formatted strings
+func (m MNDApp) GetFormattedPoolData() (s string, err error) {
+	minted, err := m.GetMintedBalance()
+	if err != nil {
+		return
+	}
+	fees, err := m.GetServiceFeesBalance()
+	if err != nil {
+		return
+	}
+	totalMins := (int(minted / m.BlockReward * m.BlockTimeMins))
+	duration := fmt.Sprintf("%02d:%02d", int(totalMins/60), totalMins%60)
+	s = fmt.Sprintf("------------------Minting Pool------------------\n"+
+		"Minted : %s    | Fees     : %s\n"+DashLine+
+		"Total  : %s    | Duration : %s\n"+DashLine,
+		FillOrLimit(minted, " ", 10), FillOrLimit(fees, " ", 10),
+		FillOrLimit(minted+fees, " ", 10), duration,
+	)
+	return
+}
+
 // GetTierDistribution retrieves the total number of active MNs for a specific tier
 func (m *MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 	if tierNo < 1 || tierNo > 4 {
@@ -248,44 +273,17 @@ func (m *MNDApp) GetAllTierDistribution() (t1, t2, t3, t4 float64, err error) {
 
 // GetFormattedMNInfo returns formatted string with masternode tiers and their collateral requirement
 func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
-	minted, err := m.GetMintedBalance()
+	s, err = m.GetFormattedPoolData()
 	if err != nil {
 		return
 	}
-	fees, err := m.GetServiceFeesBalance()
-	if err != nil {
-		return
-	}
-	totalMins := (int(minted / m.BlockReward * m.BlockTimeMins))
-	duration := fmt.Sprintf("%02d:%02d", int(totalMins/60), totalMins%60)
-	s = fmt.Sprintf("--------------Minting Pool--------------\n"+
-		"Minted : %s | Fees : %s\n"+DashLine+
-		"Total  : %s | Duration : %s\n"+DashLine,
-		FillOrLimit(minted, " ", 10), FillOrLimit(fees, " ", 10),
-		FillOrLimit(minted+fees, " ", 10), duration,
-	)
 
 	l := m.LastPayout
-	s += fmt.Sprintf("\n--------------Last Payout---------------\n"+
-		"Minted : %s | Fees : %s\n"+DashLine+
-		"Total  : %s | Duration : %s\n"+DashLine+
-		"Time   : %s UTC (approx.)\n",
-		FillOrLimit(l.Minted, " ", 10), FillOrLimit(l.Fees, " ", 10),
-		FillOrLimit(l.Total, " ", 10), l.Duration,
-		FillOrLimit(l.Time.UTC().String(), " ", 16),
-	)
-	s += fmt.Sprintf(DashLine+
-		"Tier 1  | Tier 2  | Tier 3  | Tier 4\n"+DashLine+
-		"%s  | %s  | %s  | %s\n"+DashLine,
-		FillOrLimit(l.Tiers["t1"], " ", 6),
-		FillOrLimit(l.Tiers["t2"], " ", 6),
-		FillOrLimit(l.Tiers["t3"], " ", 6),
-		FillOrLimit(l.Tiers["t4"], " ", 6),
-	)
-	s += fmt.Sprintf("                _______\n"+
-		"_______________/Per 500\\________________\n"+
+	s += l.Format()
+	s += fmt.Sprintf("                    _______\n"+
+		"___________________/Per 500\\____________________\n"+
 
-		"%s  | %s  | %s  | %s\n",
+		"%s     | %s    | %s     | %s\n",
 		FillOrLimit(l.Tiers["t1"], " ", 6),
 		FillOrLimit(l.Tiers["t2"]/2, " ", 6),
 		FillOrLimit(l.Tiers["t3"]/5, " ", 6),
@@ -296,17 +294,17 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 	t2DailyROI := (l.Tiers["t2"] / lastRMins * 1440) / m.Collateral["t2"] * 100
 	t3DailyROI := (l.Tiers["t3"] / lastRMins * 1440) / m.Collateral["t3"] * 100
 	t4DailyROI := (l.Tiers["t4"] / lastRMins * 1440) / m.Collateral["t4"] * 100
-	s += fmt.Sprintf("                _______\n"+
-		"_______________/ROI/Day\\________________\n"+
-		"%s%% | %s%%  | %s%%  | %s%%\n",
+	s += fmt.Sprintf("                    _______\n"+
+		"___________________/ROI/Day\\____________________\n"+
+		"%s%%    | %s%%   | %s%%    | %s%%\n",
 		FillOrLimit(t1DailyROI, " ", 6),
 		FillOrLimit(t2DailyROI, " ", 6),
 		FillOrLimit(t3DailyROI, " ", 6),
 		FillOrLimit(t4DailyROI, " ", 6),
 	)
-	s += fmt.Sprintf("                ________\n"+
-		"_______________/ROI/Year\\_______________\n"+
-		"%s%% | %s%%  | %s%%  | %s%%\n",
+	s += fmt.Sprintf("                    ________\n"+
+		"___________________/ROI/Year\\___________________\n"+
+		"%s%%    | %s%%   | %s%%    | %s%%\n",
 		FillOrLimit(t1DailyROI*365, " ", 6),
 		FillOrLimit(t2DailyROI*365, " ", 6),
 		FillOrLimit(t3DailyROI*365, " ", 6),
@@ -317,17 +315,17 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 	if err != nil {
 		return
 	}
-	s += fmt.Sprintf("              ____________\n"+
-		"_____________/Filled Nodes\\_____________\n"+
-		"%s | %s | %s | %s\n",
+	s += fmt.Sprintf("                  ____________\n"+
+		"_________________/Filled Nodes\\_________________\n"+
+		"%s    | %s   | %s    | %s\n",
 		FillOrLimit(fmt.Sprintf("%.0f", t1), " ", 7),
 		FillOrLimit(fmt.Sprintf("%.0f", t2), " ", 7),
 		FillOrLimit(fmt.Sprintf("%.0f", t3), " ", 7),
 		FillOrLimit(fmt.Sprintf("%.0f", t4), " ", 7),
 	)
-	s += fmt.Sprintf("               __________\n"+
-		"______________/Collateral\\______________\n"+
-		"%s | %s | %s | %s\n",
+	s += fmt.Sprintf("                   __________\n"+
+		"__________________/Collateral\\__________________\n"+
+		"%s    | %s   | %s    | %s\n",
 		FillOrLimit(m.Collateral["t1"], " ", 7),
 		FillOrLimit(m.Collateral["t2"], " ", 7),
 		FillOrLimit(m.Collateral["t3"], " ", 7),

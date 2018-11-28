@@ -14,7 +14,7 @@ Wanna try it out? If you are on Discord, why not check it out here: https://disc
 
 ### !balance [address] [ticker]: 
   - Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward pool', 'charity', 'h-eth'. If not address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address. 
-  - Example: !balance 0x1234567890abcdef OR !balance OR, !balance 2 (for 2nd item in address book)
+  - Example: !balance 0x1234567890abcdef OR !balance OR, !balance 2 (for 2nd item in the address book)
 
 ### !cmc \<symbol>: 
   - Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command. 
@@ -34,7 +34,7 @@ Wanna try it out? If you are on Discord, why not check it out here: https://disc
   - Example: !help OR !help balance
 
 ### !mn : 
-  - Shows rasternode reward pool, nodes distribution, last payout and ROI based on last payout. Or get masternode collateral info. 
+  - Shows masternode reward pool, nodes distribution, last payout and ROI based on last payout. Or get masternode collateral info. 
 
 ### !nodes [address] [address2] [address3....]: 
   - Lists masternodes owned by a specific address 

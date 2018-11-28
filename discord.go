@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -29,7 +28,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	numAddresses := len(userAddresses)
 	channelID := message.ChannelID
 	debugTag := "commandHandler"
-	isPrivateMsg := message.GuildID == ""
+	isPrivateMsg := message.GuildID == "" || data.PrivacyExceptions[channelID] != ""
 	hasPrefix := strings.HasPrefix(message.Content, commandPrefix)
 	if user.ID == botID || user.Bot || (!isPrivateMsg && !hasPrefix) {
 		// Ignore messages from any bot or messages that are not commands
@@ -81,56 +80,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		break
 	case "balance":
-		address := ""
-		txt := ""
-		num := 0
-		balance := float64(0)
-		var err error
-		balfunc := explorer.GetHaloBalance
-
-		// Handle coin/token balance commands
-		if numArgs == 0 || cmdArgs[0] == "" {
-			// No address/address book index supplied
-			if numAddresses == 0 {
-				txt = "Address required."
-				goto SendMessage
-			}
-			// Use first item from user's address book
-			cmdArgs = append(cmdArgs, userAddresses[0])
-			numArgs++
-		}
-
-		// Check if balance enquiry is for Ethereum
-		if cmdArgs[numArgs-1] == "eth" {
-			balfunc = etherscan.GetEthBalance
-			logTS(debugTag, "Ethereum address supplied")
-			// remove token argument to keep only addresses/keywords
-			cmdArgs = cmdArgs[:numArgs-1]
-		}
-
-		address = cmdArgs[0]
-		if addr, found := addressKeywords[strings.ToLower(strings.Join(cmdArgs, "-"))]; found {
-			// Valid keyword supplied
-			address = addr
-		}
-		if !strings.HasPrefix(strings.ToLower(address), "0x") {
-			// Not a valid address
-			num, err = strconv.Atoi(address)
-			if err != nil || numAddresses < num {
-				txt = "Valid address or address book item number required."
-				goto SendMessage
-			}
-			address = userAddresses[num-1]
-		}
-
-		balance, err = balfunc(address)
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve balance for "+address, debugTag) {
-			return
-		}
-		txt = fmt.Sprintf("Balance: %.8f", balance)
-	SendMessage:
-		_, err = discordSend(discord, channelID, txt, false)
-		logErrorTS(debugTag, err)
+		cmdBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
 		break
 	case "ticker":
 		cmdDexTicker(discord, channelID, debugTag, cmdArgs, numArgs)
@@ -154,7 +104,11 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		break
 	case "halo":
 		cmdDexTicker(discord, channelID, debugTag, []string{}, 0)
-		cmdMN(discord, channelID, debugTag, []string{}, 0)
+		txt, err := mndapp.GetFormattedPoolData()
+		if err == nil {
+			_, err = discordSend(discord, channelID, "js\n"+txt, true)
+		}
+		logErrorTS(debugTag, err)
 		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, userAddresses, 3, numAddresses, "trades")
 		break
 	case strings.ToLower(cmcTicker.Symbol):
@@ -172,11 +126,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		break
 	case "alert":
-		// Enable/disable alerts. For personal chat. Possibly for channels as well but should only be setup by admins
-		// TODO: MN reward notification // using temp-hack
-		// TODO: dex status notification // using realtime API
-		// TODO: feather update notification
-		discordSend(discord, channelID, "Not implemented", true)
+		cmdAlert(discord, channelID, username, debugTag, cmdArgs, numArgs)
 		break
 	case "address":
 		cmdAddress(discord, channelID, fmt.Sprint(message.Author), debugTag, cmdArgs, numArgs)
@@ -283,7 +233,8 @@ func commandHelpText(commandName string) (s string) {
 	return
 }
 
-// TODO: Use json config file or leave as is??
+// TODO: Use json config file
+// TODO: add custom "info-only" server-specific commands
 var supportedCommands = map[string]Command{
 	"help": Command{
 		Description: "Prints list of commands and supported arguments. If argument 'command' is " +
@@ -359,5 +310,11 @@ var supportedCommands = map[string]Command{
 		IsPublic:    false,
 		Arguments:   "[action <address1> <address2>...]",
 		Example:     "!addresses OR, !addresses add 0x1234 OR, !addresses remove 0x1234",
+	},
+	"alert": Command{
+		Description: "Enable disable automatic alerts. Alert types: payout. Actions:on/off",
+		IsPublic:    false,
+		Arguments:   "<type> [action]",
+		Example:     "!alert payout on",
 	},
 }

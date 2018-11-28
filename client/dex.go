@@ -117,12 +117,12 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 	if len(trades) == 0 {
 		return "No trades available"
 	}
-	s = "diff\n    Price        | Amount      | Time     DD-MM\n" + DashLine
+	s = "diff\n  Price        | Amount      | hh:mm:ss DD-MM\n" + DashLine
 	for _, trade := range trades {
 		if trade.IsBuy {
-			s += "+ | "
+			s += "+ "
 		} else {
-			s += "- | "
+			s += "- "
 		}
 		s += FillOrLimit(fmt.Sprintf("%.8f", trade.Price), " ", 12) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.2f", trade.Amount), " ", 7) + "     | "
@@ -165,12 +165,12 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 	// Use cache if available and not expired
 	cachedTicker, available := dex.CachedTickers[symbolQuote+"/"+symbolBase]
 	if available && time.Now().Sub(dex.CachedTickerLastUpdated).Minutes() < dex.CachedTickerExpireMins {
-		fmt.Println(NowTS(), " Using cached tickers")
+		fmt.Println(NowTS(), " [DEX] [GetTicker] Using cached tickers")
 		return cachedTicker, nil
 	}
 
 	tickerURL := fmt.Sprintf("%s/single/%s/%s", dex.PublicURL, symbolQuote, symbolBase)
-	fmt.Println(NowTS(), " [GetTicker] ticker URL: ", tickerURL)
+	fmt.Println(NowTS(), " [DEX] [GetTicker] ticker URL: ", tickerURL)
 
 	response := &(http.Response{})
 	response, err = http.Get(tickerURL)
@@ -257,20 +257,20 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	if len(orders) == 0 {
 		return "No orders available"
 	}
-	s = "diff\n  Price      | Amount | Filled | Time     DD-MM\n" + DashLine
+	s = "diff\n  Price      | Amount |Filled| hh:mm:ss DD-MM\n" + DashLine
 	for _, order := range orders {
 		if order.IsBuy {
 			s += "+ "
 		} else {
 			s += "- "
 		}
-		percentDP := "1"
+		percentDP := "0"
 		if order.FilledPercent < 1 {
-			percentDP = "3"
+			percentDP = "1"
 		}
 		s += FillOrLimit(fmt.Sprintf("%.8f", order.Price), " ", 10) + " | "
 		s += FillOrLimit(fmt.Sprintf("%.4f", order.Amount), " ", 6) + " | "
-		s += FillOrLimit(fmt.Sprintf("%."+percentDP+"f%%", order.FilledPercent), " ", 6) + " | "
+		s += FillOrLimit(fmt.Sprintf("%."+percentDP+"f%%", order.FilledPercent), " ", 4) + " | "
 		s += FormatTimeReverse(order.Time.UTC()) + "\n" + DashLine
 	}
 	return
@@ -346,21 +346,26 @@ type Token struct {
 // Format formats Token
 func (t *Token) Format() string {
 	return fmt.Sprintf(""+
-		"Name         : %s\n"+
-		"Ticker       : %s\n"+
-		"Type         : %s\n"+
-		"Base Chain   : %s\n"+
-		"Base Address : %s\n"+
-		"Halo Address : %s\n"+
-		"Decimals     : %d\n",
-		t.Name, t.Ticker, t.Type, t.BaseChain, t.BaseChainAddress, t.HaloChainAddress, t.Decimals)
+		"Name         : %s\n"+DashLine+
+		"Ticker       : %s\n"+DashLine+
+		"Type         : %s\n"+DashLine+
+		"Decimals     : %d\n"+DashLine+
+		"Base Chain   : %s\n"+DashLine+
+		"Base Address : \n     %s\n"+DashLine+
+		"Halo Address : \n     %s\n"+DashLine,
+		t.Name, t.Ticker, t.Type, t.Decimals, t.BaseChain, t.BaseChainAddress, t.HaloChainAddress)
 }
 
-// GetTokenList returns a string with all supported tokens on HaloDEX line by line
-func (dex *DEX) GetTokenList() (s string, err error) {
-	tokens, err := dex.GetTokens()
+// GetFormattedTokens returns a string with provided tokens or all supported tokens on HaloDEX line by line
+func (dex *DEX) GetFormattedTokens(tokens map[string]Token) (s string, err error) {
 	if len(tokens) == 0 {
-		s = "Token not found/available"
+		tokens, err = dex.GetTokens()
+		if err != nil {
+			return
+		}
+	}
+	if len(tokens) == 0 {
+		s = "No tokens found"
 		return
 	}
 	// List token names (with ticker) only
@@ -369,10 +374,12 @@ func (dex *DEX) GetTokenList() (s string, err error) {
 		keys = append(keys, ticker)
 	}
 	sort.Strings(keys)
-	s += "Supported tokens: \n"
+	// TODO: include 24 USD price and volume
+	//Name           | Ticker | Price | 24H Volume
+	s += "Name           | Ticker\n" + DashLine
 	for i := 0; i < len(keys); i++ {
 		token := tokens[keys[i]]
-		s += fmt.Sprintf("%s - %s\n", token.Name, token.Ticker)
+		s += fmt.Sprintf("%s | %s\n", FillOrLimit(token.Name, " ", 14), FillOrLimit(token.Ticker, " ", 6)) + DashLine
 	}
 	return
 }
@@ -382,14 +389,14 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 	if len(dex.CachedTokens) > 0 &&
 		time.Now().Sub(dex.CachedTokenLastUpdated).Minutes() < dex.CachedTokenExpireMins {
 		tokens = dex.CachedTokens
-		fmt.Println(NowTS(), "using cached tokens.")
+		fmt.Println(NowTS(), " [DEX] [GetTicker] using cached tokens.")
 		return
 	}
-	fmt.Println(NowTS(), "updating DEX token cache")
+	fmt.Println(NowTS(), " [DEX] [GetTokens] updating DEX token cache")
 	gqlQueryStr := `{"query":"{ supportedTokens { number type baseChain baseChainAddress haloAddress ticker name decimals }}"}`
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
-		fmt.Println("request error", err)
+		fmt.Println(NowTS(), " [DEX] [GetTokens] request error", err)
 		return
 	}
 	request.Header.Set("Content-Type", "application/json")

@@ -15,7 +15,7 @@ import (
 var MonthsShort = []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 
 // DashLine contains dashes to fill a line of text within a codeblock on Discord on most mobile devices with 5+ inches screen
-const DashLine = "----------------------------------------\n"
+const DashLine = "-----------------------------------------------\n"
 
 // FillOrLimit fill string with specific filler
 func FillOrLimit(s interface{}, filler string, max int) string {

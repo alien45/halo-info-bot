@@ -106,7 +106,7 @@ func main() {
 
 	botID = bot.ID
 	discord.AddHandler(func(discord *discordgo.Session, message *discordgo.MessageCreate) {
-		commandHandler(discord, message, conf.Client.DiscordBot.Prefix)
+		go commandHandler(discord, message, conf.Client.DiscordBot.Prefix)
 	})
 	discord.AddHandler(func(discord *discordgo.Session, ready *discordgo.Ready) {
 		err = discord.UpdateStatus(1, "Halo Bulter")

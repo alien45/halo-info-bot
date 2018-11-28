@@ -5,33 +5,35 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
 )
 
 func cmdDexTokens(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {
-	logTS(debugTag, "Retrieving HaloDEX tokens.")
-	if numArgs == 0 {
-		strTokens, err := dex.GetTokenList()
-		if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens.", debugTag) {
-			return
-		}
-		_, err = discordSend(discord, channelID, strTokens, true)
-		logErrorTS(debugTag, err)
-		return
-	}
+	txt := "Invalid/unsupported token."
+	ticker := ""
+	token := client.Token{}
+	found := false
 	tokens, err := dex.GetTokens()
-	if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
-		return
+	if numArgs == 0 {
+		txt, err = dex.GetFormattedTokens(tokens)
+		if logErrorTS(debugTag, err) {
+			txt = "Failed to retrieve tokens"
+		}
+		goto SendMessage
+	}
+	if logErrorTS(debugTag, err) {
+		txt = "Failed to retrieve tokens"
+		goto SendMessage
 	}
 
 	// ticker supplied
-	ticker := strings.ToLower(cmdArgs[0])
-	token, found := tokens[ticker]
-	if !found {
-		discordSend(discord, channelID, "Invalid/unsupported token.", true)
-		return
+	ticker = strings.ToUpper(cmdArgs[0])
+	if token, found = tokens[ticker]; found {
+		txt = token.Format()
 	}
-	discordSend(discord, channelID, token.Format(), true)
+SendMessage:
+	discordSend(discord, channelID, "js\n"+txt, true)
 }
 
 func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs, addresses []string, numArgs, numAddresses int) {
@@ -109,7 +111,6 @@ func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArg
 		symbolQuote = tempB
 	}
 
-	fmt.Println("swapped tokens ", symbolBase, symbolQuote)
 	// Get base token price
 	cmcTicker, err := cmc.GetTicker(symbolBase)
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve retrieve price of "+symbolBase, debugTag) {
