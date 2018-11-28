@@ -331,7 +331,7 @@ var supportedCommands = map[string]Command{
 		Example:     "!addresses OR, !addresses add 0x1234 OR, !addresses remove 0x1234",
 	},
 	"alert": Command{
-		Description: "Enable disable automatic alerts. Alert types: payout. Actions:on/off",
+		Description: "Enable/disable automatic alerts. Alert types: payout. Actions:on/off",
 		IsPublic:    false,
 		Arguments:   "<type> [action]",
 		Example:     "!alert payout on",

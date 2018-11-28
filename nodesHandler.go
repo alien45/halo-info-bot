@@ -70,14 +70,23 @@ func discordInterval(discord *discordgo.Session, seconds int, executeOnInit bool
 func checkPayout(discord *discordgo.Session) {
 	debugTag := "CheckPayout"
 	minted, err := mndapp.GetMintedBalance()
+	mintedTime := time.Now().UTC()
 	if err != nil {
-		logTS(debugTag+"] [GetMintedBalance", fmt.Sprint("Minted: ", minted, "[Error]: ", err))
+		logTS(debugTag+"] [GetMintedBalance", fmt.Sprint("Minted: ", minted, " [Error]: ", err))
 		return
 	}
-	fees, err := mndapp.GetServiceFeesBalance()
-	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
 	tag := "] [NotPayout"
 	rp := mndapp.RewardPool
+	durationSinceLast := mintedTime.Sub(mndapp.LastPayout.Time).Minutes()
+	mintedDuration := (minted / mndapp.BlockReward) * mndapp.BlockTimeMins
+	falseAlert := durationSinceLast < mintedDuration-8 || durationSinceLast > mintedDuration+8
+	if falseAlert {
+		logTS(debugTag+"] [FalseAlert", fmt.Sprintf("durationSinceLast: %v, mintedDuration: %v, API being cranky? %v\n", durationSinceLast, mintedDuration, falseAlert))
+		return
+	}
+
+	fees, err := mndapp.GetServiceFeesBalance()
+	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
 	if rp.Minted > minted || minted == 0 && rp.Minted != 0 {
 		// Previously retrieved balance is higher than current
 		// => means pool has been reset and payout occured
@@ -89,7 +98,7 @@ func checkPayout(discord *discordgo.Session) {
 		p.Time = rp.Time
 
 		t1, t2, t3, t4, err := mndapp.GetAllTierDistribution()
-		logErrorTS("CheckPayout", err)
+		logErrorTS(debugTag+tag, err)
 		// Prevent "assignment to nil map error"
 		if p.Tiers == nil {
 			p.Tiers = map[string]float64{}
@@ -116,12 +125,11 @@ func checkPayout(discord *discordgo.Session) {
 
 	mndapp.RewardPool.Minted = minted
 	mndapp.RewardPool.Fees = fees
-	mndapp.RewardPool.Time = time.Now()
+	mndapp.RewardPool.Time = mintedTime
 }
 
-// sendPayoutAlerts
+// sendPayoutAlerts sends out Discord payout alert to subscribed channels and users
 func sendPayoutAlerts(discord *discordgo.Session, p client.Payout) {
-	// TODO: send alert to subscribed (add opt-in/out command) channels and users
 	success := 1
 	total := len(data.Alerts.Payout)
 	for channelID, name := range data.Alerts.Payout {
