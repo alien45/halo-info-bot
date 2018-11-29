@@ -51,16 +51,19 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 		tickers = cmdArgs[2:]
 	}
 	if address == "" || !strings.HasPrefix(address, "0x") {
-		if numAddresses == 0 {
-			// Use has no address saved
-			txt = "Halo chain address required."
+		// Invalid address supplied
+		i, err := strconv.ParseInt(address, 10, 64)
+		if err != nil {
+			// Use first address from user's addressbook, if available
+			i = 1
+		}
+		if numAddresses == 0 || i < 1 || numAddresses < int(i) {
+			// No/invalid address supplied and user has no address saved
+			txt = "Valid address or address book item number required."
 			goto SendMessage
 		}
-		i, err := strconv.ParseInt(address, 10, 64)
-		// Use first address from user's addressbook
-		if err == nil && i > 0 && int(i) <= numAddresses {
-			i--
-		}
+		i--
+
 		address = addresses[i]
 	}
 
@@ -184,15 +187,18 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 			address = strings.ToLower(cmdArgs[3])
 		}
 		if !strings.HasPrefix(address, "0x") {
-			if numAddresses == 0 {
-				discordSend(discord, channelID, "Address required.", true)
+			// Invalid address supplied
+			i, err := strconv.ParseInt(address, 10, 64)
+			if err != nil {
+				// Use first address from user's addressbook, if available
+				i = 1
+			}
+			if numAddresses == 0 || i < 1 || numAddresses < int(i) {
+				// No/invalid address supplied and user has no address saved
+				discordSend(discord, channelID, "Valid address or address book item number required.", true)
 				return
 			}
-			i, err := strconv.ParseInt(address, 10, 64)
-			if err == nil && i > 0 && int(i) <= numAddresses {
-				fmt.Println("decrease")
-				i--
-			}
+			i--
 			address = userAddresses[i]
 		}
 
