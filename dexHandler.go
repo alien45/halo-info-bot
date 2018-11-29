@@ -56,9 +56,9 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 			txt = "Halo chain address required."
 			goto SendMessage
 		}
-		i, err := strconv.ParseInt(address, 10, 16)
+		i, err := strconv.ParseInt(address, 10, 64)
 		// Use first address from user's addressbook
-		if err == nil {
+		if err == nil && i > 0 && int(i) <= numAddresses {
 			i--
 		}
 		address = addresses[i]
@@ -180,15 +180,23 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 	}
 	dataStr := ""
 	if command == "orders" {
-		if numArgs < 4 {
+		if numArgs >= 4 {
+			address = strings.ToLower(cmdArgs[3])
+		}
+		if !strings.HasPrefix(address, "0x") {
 			if numAddresses == 0 {
 				discordSend(discord, channelID, "Address required.", true)
 				return
 			}
-			address = userAddresses[0]
+			i, err := strconv.ParseInt(address, 10, 64)
+			if err == nil && i > 0 && int(i) <= numAddresses {
+				fmt.Println("decrease")
+				i--
+			}
+			address = userAddresses[i]
 		}
-		orders, errO := dex.GetOrders(quoteAddr, baseAddr, limit, address)
-		err = errO
+
+		orders, err := dex.GetOrders(quoteAddr, baseAddr, limit, address)
 		logErrorTS(debugTag, err)
 		dataStr = dex.FormatOrders(orders)
 	} else {

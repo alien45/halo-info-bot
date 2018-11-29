@@ -11,7 +11,7 @@ import (
 func cmdBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs, addresses []string, numArgs, numAddresses int) {
 	address := ""
 	txt := ""
-	num := 0
+	i := 0
 	balance := float64(0)
 	var err error
 	balfunc := explorer.GetHaloBalance
@@ -43,12 +43,15 @@ func cmdBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs,
 	}
 	if !strings.HasPrefix(strings.ToLower(address), "0x") {
 		// Not a valid address
-		num, err = strconv.Atoi(address)
-		if err != nil || numAddresses < num {
+		if numAddresses == 0 {
 			txt = "Valid address or address book item number required."
 			goto SendMessage
 		}
-		address = addresses[num-1]
+		i, err = strconv.Atoi(address)
+		if err == nil && i > 0 && int(i) <= numAddresses {
+			i--
+		}
+		address = addresses[i]
 	}
 
 	balance, err = balfunc(address)

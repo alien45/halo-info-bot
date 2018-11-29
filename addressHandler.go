@@ -36,7 +36,6 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 		for i := 0; i < len(addresses); i++ {
 			addrMap[addresses[i]] = true
 		}
-		fmt.Println(addresses)
 		break
 	case "remove":
 		fallthrough
@@ -58,7 +57,6 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 			continue
 		}
 		data.AddressBook[user] = append(data.AddressBook[user], addresses[i])
-		fmt.Println(addresses[i], addrMap[addresses[i]])
 		delete(addrMap, addresses[i])
 	}
 	err = saveDiscordFile()
