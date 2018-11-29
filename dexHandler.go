@@ -59,7 +59,7 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 		i, err := strconv.ParseInt(address, 10, 16)
 		// Use first address from user's addressbook
 		if err == nil {
-			i -= 1
+			i--
 		}
 		address = addresses[i]
 	}
