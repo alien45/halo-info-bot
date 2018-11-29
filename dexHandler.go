@@ -43,20 +43,25 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 	if numArgs == 0 {
 		cmdArgs = []string{""}
 	}
-	address = cmdArgs[0]
+	address = strings.ToLower(cmdArgs[0])
 	tickerSupplied := numArgs >= 2 && cmdArgs[1] != "0"
 	showZero := numArgs == 2 && cmdArgs[1] == "0" || tickerSupplied
 	tickers := cmdArgs[1:]
 	if showZero && numArgs == 2 {
 		tickers = cmdArgs[2:]
 	}
-	if address == "" {
+	if address == "" || !strings.HasPrefix(address, "0x") {
 		if numAddresses == 0 {
+			// Use has no address saved
 			txt = "Halo chain address required."
 			goto SendMessage
 		}
+		i, err := strconv.ParseInt(address, 10, 16)
 		// Use first address from user's addressbook
-		address = addresses[0]
+		if err == nil {
+			i -= 1
+		}
+		address = addresses[i]
 	}
 
 	if !tickerSupplied {

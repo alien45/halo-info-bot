@@ -37,6 +37,8 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	debugTag := "commandHandler"
 	cmdArgs := strings.Split(message.Content, " ")
 	command := strings.ToLower(strings.TrimPrefix(cmdArgs[0], commandPrefix))
+	cmdArgs = cmdArgs[1:]
+	numArgs := len(cmdArgs)
 	cmcTicker, err := cmc.FindTicker(command)
 	_, found := supportedCommands[command]
 	if !found {
@@ -46,16 +48,16 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 				"Invalid command! Need help? Use the following command:```!help```", false)
 			logErrorTS(debugTag, err)
 			return
-		} else if cmcTicker.Symbol == "" {
+		} else if cmcTicker.Symbol == "" || numArgs > 0 {
+			// ignore if message is a chatter
 			return
 		}
 		// CMC ticker command invoked | !eth, !btc....
 		command = "cmc"
-		cmdArgs = append(cmdArgs, cmcTicker.Symbol)
+		cmdArgs = []string{cmcTicker.Symbol}
+		numArgs = 1
 	}
 
-	cmdArgs = cmdArgs[1:]
-	numArgs := len(cmdArgs)
 	if numArgs == 0 {
 		cmdArgs = []string{}
 	}
