@@ -115,7 +115,7 @@ func main() {
 
 		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers\n", len(discord.State.Guilds)))
 
-		//go discordInterval(discord, 120, true, checkPayout)
+		go discordInterval(discord, 120, true, checkPayout)
 	})
 
 	err = discord.Open()
