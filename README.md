@@ -4,12 +4,21 @@ Discord bot for the Halo Platform that incorporates internal and external APIs f
 
 Wanna try it out? If you are on Discord, why not check it out here: https://discord.gg/5Z7ZqeJ
 
+## ***Halo Info Bot has been added Halo Platform discord server*** 
+Check it out here: https://discord.gg/zCXW3uj
+
 
 ## Supported Commands
 
 ### !address [action \<address1> \<address2>...]: 
   - Add, remove and get list of saved addresses. 
   - Example: !addresses OR !addresses add 0x1234 OR !addresses remove 0x1234
+  - Private command. Only available by PMing the bot.
+
+### !alert \<type> [action]: 
+  - Enable/disable automatic alerts. Alert types: payout. Actions:on/off 
+  - Example:\
+           !alert payout on
   - Private command. Only available by PMing the bot.
 
 ### !balance [address] [ticker]: 
@@ -37,8 +46,8 @@ Wanna try it out? If you are on Discord, why not check it out here: https://disc
   - Shows masternode reward pool, nodes distribution, last payout and ROI based on last payout. Or get masternode collateral info. 
 
 ### !nodes [address] [address2] [address3....]: 
-  - Lists masternodes owned by a specific address 
-  - Example: !nodes 0x1234567890abcdef
+  - Lists masternodes owned by specific address(es) 
+  - Example: !nodes 0x1234567890abcdef 0x1234567890abcdee 
   - Private command. Only available by PMing the bot.
 
 ### !orders [quote-ticker] [base-ticker] [limit] [address]: 
@@ -59,11 +68,11 @@ Wanna try it out? If you are on Discord, why not check it out here: https://disc
   - Example: !trades halo eth 10 OR, !trades
 
 
-\<argument> => required
-[argument] => optional
+\<argument> => required\
+[argument] => optional\
 {argument} => indicates exact value
 
-Defaults where applicable:
- base ticker => ETH,
-  quote ticker => Halo
-Address(es) => first/all item(s) saved on address book, if avaiable
+Defaults where applicable:\
+--Base ticker => ETH\
+--Quote ticker => Halo\
+--Address(es) => first/all item(s) saved on address book, if avaiable
