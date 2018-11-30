@@ -135,7 +135,8 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		break
 	case "alert":
 		if message.GuildID != "" && username != conf.Client.DiscordBot.RootUser {
-			// Public channel. Admin role required
+			// Public channel. Only root user is allowed to send payout alert or enable alerts on public channels
+
 			// isAdmin, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 8)
 			// canManageChannels, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 16)
 			// canManageServer, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 32)

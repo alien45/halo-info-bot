@@ -80,7 +80,10 @@ func checkPayout(discord *discordgo.Session) {
 	rp := mndapp.RewardPool
 	fees, err := mndapp.GetServiceFeesBalance()
 	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
-	if minted == 0 && rp.Minted != 0 {
+
+	// Payout minimum duration is 8 hours
+	minMinted := mndapp.BlockReward * (60 * 8) / 4
+	if minted == 0 && rp.Minted != 0 && minted > minMinted {
 		// Previously retrieved balance is higher than current
 		// => means pool has been reset and payout occured
 		tag = "] [Payout"
@@ -108,9 +111,16 @@ func checkPayout(discord *discordgo.Session) {
 		err = saveDiscordFile()
 		if err != nil {
 			logTS(debugTag+"] [File", fmt.Sprintf("Failed to save Payout Data to %s: %+v", discordFile, p, " | [Error]: ", err))
+			// retry
+			err = saveDiscordFile()
+			if err != nil {
+				logTS(debugTag+"] [File", fmt.Sprintf("Attempt 2: failed to save Payout Data to %s: %+v", discordFile, p, " | [Error]: ", err))
+			}
 		}
-
-		go sendPayoutAlerts(discord, p)
+		alerts := map[string]string{ //data.Alerts.Payout
+			"509788668823732254": "#test-bot-spam",
+		}
+		go sendPayoutAlerts(discord, p, alerts)
 	}
 	logTS(debugTag+tag, fmt.Sprintf(
 		" Total: %f | Minted: %f | Fees: %f | ApproxTime: %s",
@@ -121,10 +131,9 @@ func checkPayout(discord *discordgo.Session) {
 }
 
 // sendPayoutAlerts sends out Discord payout alert to subscribed channels and users
-func sendPayoutAlerts(discord *discordgo.Session, p client.Payout) {
-	success := 1
-	total := len(data.Alerts.Payout)
-	for channelID, name := range data.Alerts.Payout {
+func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[string]string) (total, success, fail int) {
+	total = len(channels)
+	for channelID, name := range channels {
 		_, err := discordSend(
 			discord,
 			channelID,
@@ -139,5 +148,7 @@ func sendPayoutAlerts(discord *discordgo.Session, p client.Payout) {
 		// success
 		success++
 	}
-	logTS("PayoutAlertSummary", fmt.Sprintf("Total alerts: %d | Success: %d | Failure: %d", total, success, total-success))
+	fail = total - success
+	logTS("PayoutAlertSummary", fmt.Sprintf("Total channels: %d | Success: %d | Failure: %d", total, success, fail))
+	return
 }
