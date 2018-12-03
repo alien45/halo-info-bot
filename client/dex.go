@@ -214,28 +214,28 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 func (ticker *Ticker) Format() string {
 	return fmt.Sprintf(""+
 		"Pair          : %s\n"+DashLine+
-		"Last Price    : %.8f | $%.4f\n"+DashLine+
-		"24H High      : %.8f | $%.4f\n"+DashLine+
-		"24H Low       : %.8f | $%.4f\n"+DashLine+
+		"Last Price    : %.8f | $%.8f\n"+DashLine+
+		"24H High      : %.8f | $%.8f\n"+DashLine+
+		"24H Low       : %.8f | $%.8f\n"+DashLine+
 		"Total Supply  : %s\n"+DashLine+
 		"Market Cap USD: $%s\n"+DashLine+
 		"24H Volume    :\n"+DashLine+
 		"      -%s : %s\n"+DashLine+ // Base Bolume
 		"      -%s : %s\n"+DashLine+ // Quote Volume
 		"      -%s : $%s\n"+DashLine+ // USD Volume
-		"Last Updated  : %v\n"+DashLine,
+		"Last Updated  : %v UTC\n"+DashLine,
 		ticker.Pair,
 		ticker.Last, ticker.LastPriceUSD,
 		ticker.TwoFourAsk, ticker.TwoFourAskUSD,
 		ticker.TwoFourBid, ticker.TwoFourBidUSD,
-		ConvertNumber(ticker.QuoteTokenSupply, 2),
-		ConvertNumber(ticker.QuoteTokenMarketCap, 2),
+		ConvertNumber(ticker.QuoteTokenSupply, 4),
+		ConvertNumber(ticker.QuoteTokenMarketCap, 4),
 		FillOrLimit(ticker.BaseTicker, " ", 6),
-		ConvertNumber(ticker.TwoFourBaseVolume, 2),
+		ConvertNumber(ticker.TwoFourBaseVolume, 4),
 		FillOrLimit(ticker.QuoteTicker, " ", 6),
-		ConvertNumber(ticker.TwoFourQuoteVolume, 2),
+		ConvertNumber(ticker.TwoFourQuoteVolume, 4),
 		FillOrLimit("USD", " ", 6),
-		ConvertNumber(ticker.TwoFourVolumeUSD, 2),
+		ConvertNumber(ticker.TwoFourVolumeUSD, 4),
 		FormatTimeReverse(ticker.LastUpdated.UTC()),
 	)
 }

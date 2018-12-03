@@ -151,16 +151,16 @@ type CMCQuote struct {
 // Format formats important ticker values into a string
 func (ticker *CMCTicker) Format() string {
 	return fmt.Sprintf("Ticker           : %s (%s)\n"+DashLine+
-		"Price USD        : $%.4f\n"+DashLine+
-		"24H Price Change : %.2f%%\n"+DashLine+
+		"Price USD        : $%.8f\n"+DashLine+
+		"24H Price Change : %.4f%%\n"+DashLine+
 		"24H Volume USD   : $%s\n"+DashLine+
 		"Market Cap USD   : $%s\n"+DashLine+
 		"Last Updated     : %s UTC\n"+DashLine,
 		ticker.Name, ticker.Symbol,
 		ticker.Quote["USD"].Price,
 		ticker.Quote["USD"].PercentChange24H,
-		ConvertNumber(ticker.Quote["USD"].Volume24H, 2),
-		ConvertNumber(ticker.Quote["USD"].MarketCap, 2),
+		ConvertNumber(ticker.Quote["USD"].Volume24H, 4),
+		ConvertNumber(ticker.Quote["USD"].MarketCap, 4),
 		FormatTimeReverse(ticker.LastUpdated.UTC()),
 	)
 }
