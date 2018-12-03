@@ -19,6 +19,7 @@ type MNDApp struct {
 	Collateral    map[string]float64 `json:"collateral"`
 	RewardPool    Payout
 	LastPayout    Payout
+	LastAlert     time.Time
 }
 
 // Init instantiates MNDApp  struct
@@ -64,10 +65,18 @@ func (p *Payout) Format() (s string) {
 
 // CalcReward calculates reward per masternode given minted coins, service fees and tier distribution
 func (m MNDApp) CalcReward(minted, fees, t1, t2, t3, t4 float64) (t1r, t2r, t3r, t4r float64, duration string) {
-	t1r = (minted * 5 / m.BlockReward / t1) + (fees * 0.05 / t1)
-	t2r = (minted * 8 / m.BlockReward / t2) + (fees * 0.10 / t2)
-	t3r = (minted * 9 / m.BlockReward / t3) + (fees * 0.15 / t3)
-	t4r = (minted * 15 / m.BlockReward / t4) + (fees * 0.275 / t4)
+	if t1 > 0 {
+		t1r = (minted * 5 / m.BlockReward / t1) + (fees * 0.05 / t1)
+	}
+	if t2 > 0 {
+		t2r = (minted * 8 / m.BlockReward / t2) + (fees * 0.10 / t2)
+	}
+	if t3 > 0 {
+		t3r = (minted * 9 / m.BlockReward / t3) + (fees * 0.15 / t3)
+	}
+	if t4 > 0 {
+		t4r = (minted * 15 / m.BlockReward / t4) + (fees * 0.275 / t4)
+	}
 	totalMins := (int(minted / m.BlockReward * m.BlockTimeMins))
 	duration = fmt.Sprintf("%02d:%02d", int(totalMins/60), totalMins%60)
 	return
