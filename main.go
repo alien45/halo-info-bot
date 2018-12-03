@@ -108,12 +108,13 @@ func main() {
 		go commandHandler(discord, message, conf.Client.DiscordBot.Prefix)
 	})
 	discord.AddHandler(func(discord *discordgo.Session, ready *discordgo.Ready) {
-		err = discord.UpdateStatus(1, "Halo Bulter")
+		numServers := len(discord.State.Guilds)
+		err = discord.UpdateStatus(1, fmt.Sprintf("Halo Bulter on %d servers", numServers))
 		if logErrorTS("Discord] [Error", err) {
 			return
 		}
 
-		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers\n", len(discord.State.Guilds)))
+		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers\n", numServers))
 
 		go discordInterval(discord, 120, true, checkPayout)
 	})

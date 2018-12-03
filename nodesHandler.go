@@ -14,7 +14,7 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 	addrs := map[string]int{}
 	nodes := []client.Masternode{}
 	txt := ""
-	list := ""
+	summary := ""
 
 	if numArgs == 0 {
 		// No address supplied
@@ -39,12 +39,14 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 		}
 		nodes = append(nodes, iNodes...)
 	}
-	list, txt = mndapp.FormatNodes(nodes)
-	// separate summary and list into two code blocks
-	txt = "diff\n" + list + "``````js\n" + txt
+	txt, summary = mndapp.FormatNodes(nodes)
 SendMessage:
-	_, err := discordSend(discord, channelID, txt, true)
+	_, err := discordSend(discord, channelID, "diff\n"+txt, true)
 	logErrorTS(debugTag, err)
+	if summary != "" {
+		_, err = discordSend(discord, channelID, "js\n"+summary, true)
+		logErrorTS(debugTag, err)
+	}
 }
 
 func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {
@@ -100,7 +102,7 @@ func checkPayout(discord *discordgo.Session) {
 	isPayout := (minted <= mndapp.BlockReward || minted < prevRP.Minted) && prevRP.Minted != 0 && prevRP.Minted > minPayout
 	if !isPayout || !validDiff {
 		logTS(debugTag+tag, fmt.Sprintf(
-			" Total: %f | Minted: %f | Fees: %f | Time: %s",
+			"Total: %f | Minted: %f | Fees: %f | Time: %s",
 			minted+fees, minted, fees, client.FormatTS(mintedTime)))
 		return
 	}
@@ -122,11 +124,14 @@ func checkPayout(discord *discordgo.Session) {
 		t1, t2, t3, t4, err = mndapp.GetAllTierDistribution()
 		logErrorTS(debugTag+tag, err)
 	}
-	p.Tiers = map[string]float64{}
 	// Rewards received per MN on each tier and duration of reward cycle
+	p.Tiers = map[string]float64{}
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"],
 		p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
-	logTS(debugTag+tag, fmt.Sprintf("Distribution=> T1: %.0f, T2: %.0f, T3: %.0f, T4: %.0f", t1, t2, t3, t4))
+	// Log
+	logTS(debugTag+tag, fmt.Sprintf("Total: %f | Minted: %f | Fees: %f | Time: %s | "+
+		"Distribution=> T1: %.0f, T2: %.0f, T3: %.0f, T4: %.0f",
+		p.Total, p.Minted, p.Fees, client.FormatTS(p.Time), t1, t2, t3, t4))
 	// update last payout details to config file
 	mndapp.LastPayout = p
 	data.LastPayout = p
@@ -140,13 +145,13 @@ func checkPayout(discord *discordgo.Session) {
 		}
 	}
 
-	// If last alert was sent within 8 hours, avoid duplicate alerts in case of false positives
-	if time.Now().Sub(mndapp.LastAlert).Minutes() >= minDuration {
-		logTS(debugTag+tag, "Avoided sending false positive alert")
-		return
-	}
-	alerts := map[string]string{ //data.Alerts.Payout
-		"452277479160414223": "test channel",
+	alerts := data.Alerts.Payout
+	// If last alert was sent within 8 hours, avoid duplicate/false alerts to masses in case of false positives
+	if time.Now().Sub(mndapp.LastAlert).Minutes() <= minDuration {
+		logTS(debugTag+tag, "Avoided sending false positive alert. Sent to test channel instead")
+		alerts = map[string]string{
+			"452277479160414223": "test channel",
+		}
 	}
 	go sendPayoutAlerts(discord, p, alerts)
 	mndapp.LastAlert = time.Now().UTC()

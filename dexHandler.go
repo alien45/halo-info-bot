@@ -86,7 +86,7 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 		logErrorTS(debugTag, err)
 	}
 SendMessage:
-	discordSend(discord, channelID, txt, true)
+	discordSend(discord, channelID, "js\n"+txt, true)
 }
 
 func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArgs []string, numArgs int) {
@@ -143,7 +143,7 @@ func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArg
 	}
 	logTS(debugTag, fmt.Sprintf("%s/%s ticker received: %s", symbolBase, symbolQuote, ticker.Pair))
 
-	_, err = discordSend(discord, channelID, ticker.Format(), true)
+	_, err = discordSend(discord, channelID, "js\n"+ticker.Format(), true)
 	commandErrorIf(err, discord, channelID, "Something went wrong!", debugTag)
 }
 

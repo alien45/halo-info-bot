@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	client "github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -18,9 +19,9 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 			txt = "No addresses available!"
 			goto SendMessage
 		}
-
+		txt = client.DashLine
 		for i := 0; i < len(addresses); i++ {
-			txt += fmt.Sprintf("%d. %s\n", i+1, addresses[i])
+			txt += fmt.Sprintf("%d. %s\n%s", i+1, addresses[i], client.DashLine)
 		}
 		goto SendMessage
 	}
@@ -66,5 +67,5 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 	}
 	txt = "Changes saved"
 SendMessage:
-	discordSend(discord, channelID, "\n"+txt, true)
+	discordSend(discord, channelID, "js\n"+txt, true)
 }

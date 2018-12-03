@@ -117,7 +117,7 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 	if len(trades) == 0 {
 		return "No trades available"
 	}
-	s = "diff\n  Price        | Amount      | hh:mm:ss DD-MM\n" + DashLine
+	s = "diff\n  Price        | Amount      | hh:mm:ss DD-MMM\n" + DashLine
 	for _, trade := range trades {
 		if trade.IsBuy {
 			s += "+ "
@@ -213,17 +213,17 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 // Format formats important ticker values into a string
 func (ticker *Ticker) Format() string {
 	return fmt.Sprintf(""+
-		"Pair          : %s\n"+
-		"Last Price    : %.8f | $%.4f\n"+
-		"24H High      : %.8f | $%.4f\n"+
-		"24H Low       : %.8f | $%.4f\n"+
-		"Total Supply  : %s\n"+
-		"Market Cap USD: $%s\n"+
-		"24H Volume    :\n"+
-		"      -%s : %s\n"+ // Base Bolume
-		"      -%s : %s\n"+ // Quote Volume
-		"      -%s : $%s\n"+ // USD Volume
-		"Last Updated  : %v\n",
+		"Pair          : %s\n"+DashLine+
+		"Last Price    : %.8f | $%.4f\n"+DashLine+
+		"24H High      : %.8f | $%.4f\n"+DashLine+
+		"24H Low       : %.8f | $%.4f\n"+DashLine+
+		"Total Supply  : %s\n"+DashLine+
+		"Market Cap USD: $%s\n"+DashLine+
+		"24H Volume    :\n"+DashLine+
+		"      -%s : %s\n"+DashLine+ // Base Bolume
+		"      -%s : %s\n"+DashLine+ // Quote Volume
+		"      -%s : $%s\n"+DashLine+ // USD Volume
+		"Last Updated  : %v\n"+DashLine,
 		ticker.Pair,
 		ticker.Last, ticker.LastPriceUSD,
 		ticker.TwoFourAsk, ticker.TwoFourAskUSD,
@@ -257,7 +257,7 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	if len(orders) == 0 {
 		return "No orders available"
 	}
-	s = "diff\n  Price      | Amount |Filled| hh:mm:ss DD-MM\n" + DashLine
+	s = "diff\n  Price      | Amount |Filled| hh:mm:ss DD-MMM\n" + DashLine
 	for _, order := range orders {
 		if order.IsBuy {
 			s += "+ "
@@ -389,7 +389,7 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 	if len(dex.CachedTokens) > 0 &&
 		time.Now().Sub(dex.CachedTokenLastUpdated).Minutes() < dex.CachedTokenExpireMins {
 		tokens = dex.CachedTokens
-		fmt.Println(NowTS(), " [DEX] [GetTicker] using cached tokens.")
+		fmt.Println(NowTS(), " [DEX] [GetTokens] using cached tokens.")
 		return
 	}
 	fmt.Println(NowTS(), " [DEX] [GetTokens] updating DEX token cache")

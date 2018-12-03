@@ -115,12 +115,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, userAddresses, 3, numAddresses, "trades")
 		break
-	// case strings.ToLower(cmcTicker.Symbol):
-	// 	fmt.Println()
-	// 	if cmcTicker.Symbol == "" {
-	// 		break
-	// 	}
-	// 	fallthrough
 	case "cmc":
 		// Handle CoinMarketCap related commands
 		nameOrSymbol := strings.ToUpper(strings.Join(cmdArgs, " "))
@@ -128,9 +122,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		if commandErrorIf(err, discord, channelID, "Ticker not found or query failed.", debugTag) {
 			return
 		}
-
-		_, err = discordSend(discord, channelID, ticker.Format(), true)
-		commandErrorIf(err, discord, channelID, "Failed to retrieve CMC ticker for "+nameOrSymbol, debugTag)
+		_, err = discordSend(discord, channelID, "js\n"+ticker.Format(), true)
 		logErrorTS(debugTag, err)
 		break
 	case "alert":
@@ -169,7 +161,7 @@ func commandErrorIf(err error, discord *discordgo.Session, channelID, message, d
 // characters), it will split the text and send multiple messages by recursively spliting on the last line break
 // within the first 2000 character range. If line break is not existant within the range will use 2000.
 func discordSend(discord *discordgo.Session, channelID, message string, codeBlock bool) (newMessage *discordgo.Message, err error) {
-	debugTag := "discordSend()"
+	debugTag := "discordSend"
 	messageLimit := 2000
 	if len(strings.TrimSpace(message)) == 0 {
 		logTS(debugTag, "skipped sending empty message")

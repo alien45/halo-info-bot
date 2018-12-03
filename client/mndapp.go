@@ -98,7 +98,7 @@ func (m Masternode) Format() string {
 	colorSign := "-"
 	switch m.State {
 	case 1:
-		status = "Created"
+		status = "Initializing"
 		break
 	case 2:
 		status = "Deposited"
@@ -112,7 +112,7 @@ func (m Masternode) Format() string {
 	return fmt.Sprintf(
 		"%s | %s |  %d | %s | %s\n",
 		colorSign,
-		m.Address[:6]+"..."+m.Address[mlen-6:],
+		m.Address[:6]+"..."+m.Address[mlen-4:],
 		m.Tier,
 		FillOrLimit(fmt.Sprintf("%.0f", m.Shares), " ", 7),
 		status,
@@ -151,7 +151,7 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 	totalInvested := float64(0)
 	inactive := float64(0)
 
-	list = "    Address         |Tier|  Shares   | Status\n" + DashLine
+	list = "    Address       |Tier|  Shares | Status\n" + DashLine
 	for i := 0; i < num; i++ {
 		n := nodes[i]
 		list += n.Format() + DashLine

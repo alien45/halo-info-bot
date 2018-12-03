@@ -150,12 +150,12 @@ type CMCQuote struct {
 
 // Format formats important ticker values into a string
 func (ticker *CMCTicker) Format() string {
-	return fmt.Sprintf("Ticker           : %s (%s)\n"+
-		"Price USD        : $%.4f\n"+
-		"24H Price Change : %.2f%%\n"+
-		"24H Volume USD   : $%s\n"+
-		"Market Cap USD   : $%s\n"+
-		"Last Updated     : %s\n",
+	return fmt.Sprintf("Ticker           : %s (%s)\n"+DashLine+
+		"Price USD        : $%.4f\n"+DashLine+
+		"24H Price Change : %.2f%%\n"+DashLine+
+		"24H Volume USD   : $%s\n"+DashLine+
+		"Market Cap USD   : $%s\n"+DashLine+
+		"Last Updated     : %s UTC\n"+DashLine,
 		ticker.Name, ticker.Symbol,
 		ticker.Quote["USD"].Price,
 		ticker.Quote["USD"].PercentChange24H,
