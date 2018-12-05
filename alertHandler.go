@@ -174,7 +174,7 @@ func sendPayoutsManual(discord *discordgo.Session, userChannelID string, minted,
 	p.Total = minted + fees
 	p.Time = time.Now()
 	p.Tiers = map[string]float64{}
-	p.Tiers["t1"], p.Tiers["t1"], p.Tiers["t1"], p.Tiers["t1"], p.Duration = mndapp.CalcReward(minted, fees, t1, t2, t3, t4)
+	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"], p.Duration = mndapp.CalcReward(minted, fees, t1, t2, t3, t4)
 	mndapp.LastPayout = p
 	mndapp.LastAlert = p.Time
 	total, success, fail := sendPayoutAlerts(discord, p, data.Alerts.Payout)
