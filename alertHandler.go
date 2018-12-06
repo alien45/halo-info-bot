@@ -66,6 +66,17 @@ AlertMessage:
 	discordSend(discord, channelID, txt, true)
 }
 
+// discordInterval invoke a function periodically and only supplies Discord session as parameter
+func discordInterval(discord *discordgo.Session, seconds int, executeOnInit bool, f func(discord *discordgo.Session)) {
+	if executeOnInit {
+		f(discord)
+	}
+	// Execute on interval
+	for range time.Tick(time.Second * time.Duration(seconds)) {
+		f(discord)
+	}
+}
+
 // Check if payout occured and send alert messages
 func checkPayout(discord *discordgo.Session) {
 	debugTag := "CheckPayout"
@@ -96,7 +107,7 @@ func checkPayout(discord *discordgo.Session) {
 	} else {
 		debugTag += "] [FalsePositive"
 	}
-	isPayout := (minted <= mndapp.BlockReward || minted < prevRP.Minted) && prevRP.Minted != 0 && prevRP.Minted > minPayout
+	isPayout := (minted <= mndapp.BlockReward && minted < prevRP.Minted) && prevRP.Minted != 0 && prevRP.Minted > minPayout
 	logTS(debugTag, fmt.Sprintf(
 		"Total: %f | Minted: %f | Fees: %f | Time: %s",
 		minted+fees, minted, fees, client.FormatTS(mintedTime)))

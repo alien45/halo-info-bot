@@ -2,7 +2,6 @@ package main
 
 import (
 	"strings"
-	"time"
 
 	"github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
@@ -55,15 +54,4 @@ func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []str
 	}
 	_, err = discordSend(discord, channelID, "js\n"+txt, true)
 	logErrorTS(debugTag, err)
-}
-
-// discordInterval invoke a function periodically and only supplies Discord session as parameter
-func discordInterval(discord *discordgo.Session, seconds int, executeOnInit bool, f func(discord *discordgo.Session)) {
-	if executeOnInit {
-		f(discord)
-	}
-	// Execute on interval
-	for range time.Tick(time.Second * time.Duration(seconds)) {
-		f(discord)
-	}
 }

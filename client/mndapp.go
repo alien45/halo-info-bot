@@ -147,7 +147,7 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 		return
 	}
 
-	tierShareCount := map[int64]float64{}
+	tierShares := map[int64]float64{}
 	totalInvested := float64(0)
 	inactive := float64(0)
 
@@ -155,24 +155,27 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 	for i := 0; i < num; i++ {
 		n := nodes[i]
 		list += n.Format() + DashLine
-		tierShareCount[n.Tier] += n.Shares
+		tierShares[n.Tier] += n.Shares
 		totalInvested += n.Shares
 		if n.State != 3 {
 			inactive += n.Shares
 		}
 	}
 
-	summary = fmt.Sprintf("=========Summary=========\n"+
-		"Total Halo Invested: %.0f\n"+
-		"Total Active: %.0f\n"+
-		"Total Inactive: %.0f\n",
-		totalInvested,
-		totalInvested-inactive,
-		inactive)
-	for i := int64(1); i <= 4; i++ {
-		count, _ := tierShareCount[i]
-		summary += fmt.Sprintf("Tier %d: %.0f\n", i, count)
-	}
+	summary = "================== Summary ===================\n" +
+		"Invested  | Active    | Inactive  | Nodes\n" + DashLine +
+		fmt.Sprintf("%s| %s| %s| %d\n",
+			FillOrLimit(totalInvested, " ", 10),
+			FillOrLimit(totalInvested-inactive, " ", 10),
+			FillOrLimit(inactive, " ", 10),
+			num)
+	summary += "\nTier 1    | Tier 2    | Tier 3    | Tier 4\n" + DashLine +
+		fmt.Sprintf("%s| %s| %s| %s",
+			FillOrLimit(tierShares[1], " ", 10),
+			FillOrLimit(tierShares[2], " ", 10),
+			FillOrLimit(tierShares[3], " ", 10),
+			FillOrLimit(tierShares[4], " ", 10),
+		)
 	return
 }
 
