@@ -48,6 +48,39 @@ func (dex *DEX) Init(gqlURL string, publicURL string) {
 	return
 }
 
+// Trade describes HaloDEX trade item
+type Trade struct {
+	ID            string  `json:"id"`
+	TokenGet      string  `json:"tokenGet"`
+	TokenGive     string  `json:"tokenGive"`
+	AmountGet     float64 `json:"amountGet,string,omitempty"`
+	AmountGive    float64 `json:"amountGive,string"`
+	TimeEpochNano int64   `json:"blockTimestamp,string"`
+	Time          time.Time
+	IsBuy         bool
+	Price         float64
+	Amount        float64
+}
+
+// FormatTrades transforms Trade attributes into formatted signle line string
+func (*DEX) FormatTrades(trades []Trade) (s string) {
+	if len(trades) == 0 {
+		return "No trades available"
+	}
+	s = "diff\n  Price        | Amount      | hh:mm:ss DD-MMM\n" + DashLine
+	for _, trade := range trades {
+		if trade.IsBuy {
+			s += "+ "
+		} else {
+			s += "- "
+		}
+		s += FillOrLimit(fmt.Sprintf("%.8f", trade.Price), " ", 12) + " | "
+		s += FillOrLimit(fmt.Sprintf("%.8f", trade.Amount), " ", 12) + " | "
+		s += FormatTimeReverse(trade.Time.UTC()) + "\n" + DashLine
+	}
+	return
+}
+
 // GetTrades function retrieves recent trades from HaloDEX
 func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, err error) {
 	//quick and dirty GQL query
@@ -94,39 +127,6 @@ func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, er
 		// sell
 		trades[i].Amount = trades[i].AmountGet / 1e18
 		trades[i].Price = trades[i].AmountGive / trades[i].AmountGet
-	}
-	return
-}
-
-// Trade describes HaloDEX trade item
-type Trade struct {
-	ID            string  `json:"id"`
-	TokenGet      string  `json:"tokenGet"`
-	TokenGive     string  `json:"tokenGive"`
-	AmountGet     float64 `json:"amountGet,string,omitempty"`
-	AmountGive    float64 `json:"amountGive,string"`
-	TimeEpochNano int64   `json:"blockTimestamp,string"`
-	Time          time.Time
-	IsBuy         bool
-	Price         float64
-	Amount        float64
-}
-
-// FormatTrades transforms Trade attributes into formatted signle line string
-func (*DEX) FormatTrades(trades []Trade) (s string) {
-	if len(trades) == 0 {
-		return "No trades available"
-	}
-	s = "diff\n  Price        | Amount      | hh:mm:ss DD-MMM\n" + DashLine
-	for _, trade := range trades {
-		if trade.IsBuy {
-			s += "+ "
-		} else {
-			s += "- "
-		}
-		s += FillOrLimit(fmt.Sprintf("%.8f", trade.Price), " ", 12) + " | "
-		s += FillOrLimit(fmt.Sprintf("%.2f", trade.Amount), " ", 7) + "     | "
-		s += FormatTimeReverse(trade.Time.UTC()) + "\n" + DashLine
 	}
 	return
 }
@@ -313,21 +313,19 @@ func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []
 	orders = ordersResult["data"]["orders"]
 	// Process received data to extract IsBuy, Price and Amount
 	for i := 0; i < len(orders); i++ {
-		amtGet := orders[i].AmountGet
-		amtGive := orders[i].AmountGive
-		orders[i].IsBuy = strings.ToLower(orders[i].TokenGet) == strings.ToLower(quoteAddr)
+		orders[i].IsBuy = strings.ToUpper(orders[i].TokenGet) == strings.ToUpper(quoteAddr)
 		orders[i].Time = time.Unix(0, orders[i].TimeEpochNano)
-		orders[i].FilledPercent = orders[i].FilledAmount / amtGet * 100
+		orders[i].FilledPercent = orders[i].FilledAmount / orders[i].AmountGet * 100
 		if !orders[i].IsBuy {
-			// sell
-			orders[i].Amount = amtGet / 1e18
-			orders[i].Price = amtGet / amtGive
+			// buy
+			orders[i].Amount = orders[i].AmountGive / 1e18
+			orders[i].Price = orders[i].AmountGet / orders[i].AmountGive
 			continue
 		}
 
-		// buy
-		orders[i].Amount = amtGet / 1e18
-		orders[i].Price = amtGive / amtGet
+		// sell
+		orders[i].Amount = orders[i].AmountGet / 1e18
+		orders[i].Price = orders[i].AmountGive / orders[i].AmountGet
 	}
 	return
 }
