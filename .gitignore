@@ -13,6 +13,7 @@
 
 # Startup file
 start.sh
+watch.sh
 
 # Log and configuration files
 *.log
