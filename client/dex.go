@@ -81,20 +81,8 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 	return
 }
 
-// GetTrades function retrieves recent trades from HaloDEX
-func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, err error) {
-	//quick and dirty GQL query
-	gqlQueryStr := `{
-		"operationName": "trades",
-		"query": "query trades($baseAddress: String!, $quoteAddress: String!) { ` +
-		`trades(where: {OR: [{tokenGet: $baseAddress, tokenGive: $quoteAddress}, {tokenGet: $quoteAddress, tokenGive: $baseAddress}]}, orderBy: blockTimestamp_DESC, first: ` +
-		limit + `) {id tokenGet tokenGive amountGet amountGive blockTimestamp __typename}}",
-		"variables": {
-			"baseAddress" : "` + baseAddr + `",
-			"quoteAddress" : "` + quoteAddr + `"
-		}
-	}`
-
+// GetTradesWithGQLStr retrieves trades using pre-constructed GraphQL query string
+func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string) (trades []Trade, err error) {
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
@@ -129,6 +117,39 @@ func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, er
 		trades[i].Price = trades[i].AmountGive / trades[i].AmountGet
 	}
 	return
+}
+
+// GetTrades function retrieves recent trades from HaloDEX
+func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, err error) {
+	//quick and dirty GQL query
+	gqlQueryStr := `{
+		"operationName": "trades",
+		"query": "query trades($baseAddress: String!, $quoteAddress: String!) { ` +
+		`trades(where: {OR: [{tokenGet: $baseAddress, tokenGive: $quoteAddress}, {tokenGet: $quoteAddress, tokenGive: $baseAddress}]}, orderBy: blockTimestamp_DESC, first: ` +
+		limit + `) {id tokenGet tokenGive amountGet amountGive blockTimestamp __typename}}",
+		"variables": {
+			"baseAddress" : "` + baseAddr + `",
+			"quoteAddress" : "` + quoteAddr + `"
+		}
+	}`
+	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr)
+}
+
+// GetTradesByTime retrieves trades since given blockstime
+func (dex *DEX) GetTradesByTime(quoteAddr, baseAddr string, blockTime time.Time) (trades []Trade, err error) {
+	gqlQueryStr := `{
+		"operationName": "trades",
+		"query": "query trades($baseTokenAddress: String!, $tokenAddress: String!, $timeFrom: String!) ` +
+		`{ trades(where: {OR: [{tokenGive: $baseTokenAddress, tokenGet: $tokenAddress, blockTimestamp_gte: $timeFrom}, ` +
+		`{tokenGive: $tokenAddress, tokenGet: $baseTokenAddress, blockTimestamp_gte: $timeFrom}]}, ` +
+		`orderBy: blockTimestamp_DESC) { id tokenGet amountGet amountGive blockTimestamp timestamp __typename } }",
+		"variables": {
+			"baseAddress" : "` + baseAddr + `",
+			"quoteAddress" : "` + quoteAddr + `",
+			"timeFrom": "` + fmt.Sprint(blockTime.UnixNano()) + `"
+		}
+	}`
+	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr)
 }
 
 // Ticker describes a HaloDEX ticker response

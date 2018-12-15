@@ -21,14 +21,7 @@ var (
 	explorer        client.Explorer
 	etherscan       client.Etherscan
 	mndapp          client.MNDApp
-	addressKeywords = map[string]string{
-		// Halo Masternode reward pool
-		"reward-pool": "0xd674dd3cdf07139ffda85b8589f0e2ca600f996e",
-		// Charity address by the Halo Platform community
-		"charity": "0xaefaffa2272098b4ab6f9a87a76f25944aee746d",
-		// Ethereum address for H-ETH token
-		"h-eth": "0x70a41917365E772E41D404B3F7870CA8919b4fBe",
-	}
+	addressKeywords map[string]string
 	// Commands names that are not allowed in the public chats. Key: command, value: unused.
 	privateCmds     = map[string]string{}
 	helpText        string
@@ -56,8 +49,9 @@ type Config struct {
 
 // DiscordData stores Discord user preferences and other data
 type DiscordData struct {
-	LastPayout client.Payout `json:"lastpayout"`
-	Alerts     struct {
+	LastPayout      client.Payout     `json:"lastpayout"`
+	AddressKeywords map[string]string `json:"addresskeywords"`
+	Alerts          struct {
 		Payout map[string]string `json:"payout"`
 	} `json:"alerts"` // key: channel id, value: channel id/username
 	PrivacyExceptions map[string]string `json:"privacyexceptions"` // key: channel id, value: name
@@ -77,6 +71,7 @@ func main() {
 	err = json.Unmarshal([]byte(discordStr), &data)
 	panicIf(err, "Failed to load "+discordFile+" file")
 
+	addressKeywords = data.AddressKeywords
 	conf.Client.MNDApp.LastPayout = data.LastPayout
 
 	// generate private commands' list
