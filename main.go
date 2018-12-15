@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 
 	client "github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
@@ -142,9 +141,5 @@ func logErrorTS(debugTag string, err error) (hasError bool) {
 }
 
 func saveDiscordFile() (err error) {
-	dataBytes, err := json.MarshalIndent(data, "", "    ")
-	if err != nil {
-		return
-	}
-	return ioutil.WriteFile(discordFile, dataBytes, 644)
+	return client.SaveJSONFile(discordFile, data)
 }
