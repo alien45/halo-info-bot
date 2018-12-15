@@ -93,9 +93,17 @@ func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string) (trades []Trad
 	if err != nil {
 		return
 	}
-	tradesResult := map[string]map[string][]Trade{}
+	responseBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return
+	}
+	return dex.GetTradesFromResult(responseBytes, baseAddr)
+}
 
-	err = json.NewDecoder(response.Body).Decode(&tradesResult)
+// GetTradesFromResult ...
+func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string) (trades []Trade, err error) {
+	tradesResult := map[string]map[string][]Trade{}
+	err = json.Unmarshal(jsonResultBytes, &tradesResult)
 	if err != nil {
 		return
 	}

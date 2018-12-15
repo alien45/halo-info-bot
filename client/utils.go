@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -107,4 +108,13 @@ func ReadFile(pathToFile string) (text string, err error) {
 // WriteFile Writes file to system
 func WriteFile(destinationPath string, text string, permission os.FileMode) error {
 	return ioutil.WriteFile(destinationPath, []byte(text), permission)
+}
+
+// SaveJSONFile writes supplied data as foratted JSON
+func SaveJSONFile(filename string, data interface{}) (err error) {
+	dataBytes, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		return
+	}
+	return ioutil.WriteFile(filename, dataBytes, 644)
 }
