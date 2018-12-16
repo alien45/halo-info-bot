@@ -118,3 +118,19 @@ func SaveJSONFile(filename string, data interface{}) (err error) {
 	}
 	return ioutil.WriteFile(filename, dataBytes, 0644)
 }
+
+// SaveJSONFileLarge writes supplied data as foratted JSON
+func SaveJSONFileLarge(filename string, data interface{}) (err error) {
+	dataBytes, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		return
+	}
+	file, err := os.Create(filename)
+	if err != nil {
+		fmt.Println("create failed")
+		return
+	}
+	defer file.Close()
+	_, err = file.Write(dataBytes)
+	return
+}

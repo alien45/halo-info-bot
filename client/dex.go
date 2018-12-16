@@ -102,17 +102,21 @@ func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string) (trades []Trad
 
 // GetTradesFromResult ...
 func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string) (trades []Trade, err error) {
-	tradesResult := map[string]map[string][]Trade{}
+	tradesResult := struct {
+		Data struct {
+			Trades []Trade `json:"trades"`
+		} `json:"data"`
+	}{}
 	err = json.Unmarshal(jsonResultBytes, &tradesResult)
 	if err != nil {
 		return
 	}
 
-	trades = tradesResult["data"]["trades"]
+	trades = tradesResult.Data.Trades
 	// Process received data to extract IsBuy, Price and Amount
 	for i := 0; i < len(trades); i++ {
 		trades[i].IsBuy = strings.ToUpper(trades[i].TokenGet) == strings.ToUpper(baseAddr)
-		trades[i].Time = time.Unix(0, trades[i].TimeEpochNano)
+		trades[i].Time = time.Unix(0, trades[i].TimeEpochNano).UTC()
 		if trades[i].IsBuy {
 			// buy
 			trades[i].Amount = trades[i].AmountGive / 1e18
@@ -147,14 +151,14 @@ func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, er
 func (dex *DEX) GetTradesByTime(quoteAddr, baseAddr string, blockTime time.Time) (trades []Trade, err error) {
 	gqlQueryStr := `{
 		"operationName": "trades",
-		"query": "query trades($baseTokenAddress: String!, $tokenAddress: String!, $timeFrom: String!) ` +
-		`{ trades(where: {OR: [{tokenGive: $baseTokenAddress, tokenGet: $tokenAddress, blockTimestamp_gte: $timeFrom}, ` +
-		`{tokenGive: $tokenAddress, tokenGet: $baseTokenAddress, blockTimestamp_gte: $timeFrom}]}, ` +
+		"query": "query trades($baseAddress: String!, $quoteAddress: String!, $timeFrom: String!) ` +
+		`{ trades(where: {OR: [{tokenGive: $baseAddress, tokenGet: $quoteAddress, blockTimestamp_gte: $timeFrom}, ` +
+		`{tokenGive: $quoteAddress, tokenGet: $baseAddress, blockTimestamp_gte: $timeFrom}]}, ` +
 		`orderBy: blockTimestamp_DESC) { id tokenGet amountGet amountGive blockTimestamp timestamp __typename } }",
 		"variables": {
 			"baseAddress" : "` + baseAddr + `",
 			"quoteAddress" : "` + quoteAddr + `",
-			"timeFrom": "` + fmt.Sprint(blockTime.UnixNano()) + `"
+			"timeFrom": "000000000000000000000` + fmt.Sprint(blockTime.UTC().UnixNano()) + `"
 		}
 	}`
 	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr)
@@ -343,7 +347,7 @@ func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []
 	// Process received data to extract IsBuy, Price and Amount
 	for i := 0; i < len(orders); i++ {
 		orders[i].IsBuy = strings.ToUpper(orders[i].TokenGet) == strings.ToUpper(quoteAddr)
-		orders[i].Time = time.Unix(0, orders[i].TimeEpochNano)
+		orders[i].Time = time.Unix(0, orders[i].TimeEpochNano).UTC()
 		orders[i].FilledPercent = orders[i].FilledAmount / orders[i].AmountGet * 100
 		if !orders[i].IsBuy {
 			// buy
