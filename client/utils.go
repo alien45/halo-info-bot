@@ -116,5 +116,5 @@ func SaveJSONFile(filename string, data interface{}) (err error) {
 	if err != nil {
 		return
 	}
-	return ioutil.WriteFile(filename, dataBytes, 644)
+	return ioutil.WriteFile(filename, dataBytes, 0644)
 }
