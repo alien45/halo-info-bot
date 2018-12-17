@@ -145,6 +145,13 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	case "address":
 		cmdAddress(discord, channelID, fmt.Sprint(message.Author), debugTag, cmdArgs, numArgs)
 		break
+	case "chart":
+		url := data.Info["charturl"]
+		if numArgs > 0 && strings.ToLower(cmdArgs[0]) == "dark" {
+			url = data.Info["charturldark"]
+		}
+		_, err = discordSend(discord, channelID, url, false)
+		logErrorTS(debugTag, err)
 	}
 }
 
@@ -299,6 +306,12 @@ var supportedCommands = map[string]Command{
 		IsPublic:    true,
 		Example:     "!halo",
 	},
+	"chart": Command{
+		Description: "Get the URL of the HaloDEX third-party charts.",
+		IsPublic:    true,
+		Arguments:   "[{dark}]",
+		Example:     "!chart OR !chart dark",
+	},
 
 	// Private Commands
 	"nodes": Command{
@@ -331,29 +344,4 @@ var supportedCommands = map[string]Command{
 		Arguments:   "<type> [action]",
 		Example:     "!alert payout on",
 	},
-}
-
-// MemberHasPermission ....
-func MemberHasPermission(s *discordgo.Session, guildID string, userID string, permission int) (bool, error) {
-	member, err := s.State.Member(guildID, userID)
-
-	if err != nil {
-		if member, err = s.GuildMember(guildID, userID); err != nil {
-			return false, err
-		}
-	}
-
-	// Iterate through the role IDs stored in member.Roles
-	// to check permissions
-	for _, roleID := range member.Roles {
-		role, err := s.State.Role(guildID, roleID)
-		if err != nil {
-			return false, err
-		}
-		if role.Permissions&permission != 0 {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }

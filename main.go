@@ -50,6 +50,7 @@ type Config struct {
 type DiscordData struct {
 	LastPayout      client.Payout     `json:"lastpayout"`
 	AddressKeywords map[string]string `json:"addresskeywords"`
+	Info            map[string]string `json:"info"`
 	Alerts          struct {
 		Payout map[string]string `json:"payout"`
 	} `json:"alerts"` // key: channel id, value: channel id/username
