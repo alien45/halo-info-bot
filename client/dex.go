@@ -291,7 +291,7 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	if len(orders) == 0 {
 		return "No orders available"
 	}
-	s = "diff\n  Price      | Amount |Filled| hh:mm:ss DD-MMM\n" + DashLine
+	s = "diff\n  Price      | Amount    |Done| hh:mm:ss DD-MMM\n" + DashLine
 	for _, order := range orders {
 		if order.IsBuy {
 			s += "+ "
@@ -299,12 +299,12 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 			s += "- "
 		}
 		percentDP := "0"
-		if order.FilledPercent < 1 {
+		if order.FilledPercent < 10 {
 			percentDP = "1"
 		}
 		s += FillOrLimit(fmt.Sprintf("%.8f", order.Price), " ", 10) + " | "
-		s += FillOrLimit(fmt.Sprintf("%.4f", order.Amount), " ", 6) + " | "
-		s += FillOrLimit(fmt.Sprintf("%."+percentDP+"f%%", order.FilledPercent), " ", 4) + " | "
+		s += FillOrLimit(fmt.Sprintf("%.4f", order.Amount), " ", 9) + " |"
+		s += FillOrLimit(fmt.Sprintf("%."+percentDP+"f%%", order.FilledPercent), " ", 4) + "| "
 		s += FormatTimeReverse(order.Time.UTC()) + "\n" + DashLine
 	}
 	return
