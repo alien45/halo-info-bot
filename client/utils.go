@@ -50,16 +50,16 @@ func ConvertNumber(num float64, decimalPlaces int) string {
 	name := ""
 	if num >= 1e12 { // trillion
 		divideBy = 1e12
-		name = "Trillion"
+		name = "T"
 	} else if num >= 1e9 { // billion
 		divideBy = 1e9
-		name = "Billion"
+		name = "B"
 	} else if num >= 1e6 { // million
 		divideBy = 1e6
-		name = "Million"
+		name = "M"
 	} else if num >= 1e3 { // thousand
 		divideBy = 1e3
-		name = "Thousand"
+		name = "K"
 	}
 	if decimalPlaces < 0 {
 		// No decimal places

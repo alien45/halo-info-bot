@@ -337,11 +337,12 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 	)
 	s += fmt.Sprintf("                  __________\n"+
 		"_________________/Collateral\\__________________\n"+
-		"%s    | %s   | %s    | %s\n",
-		FillOrLimit(m.Collateral["t1"], " ", 7),
-		FillOrLimit(m.Collateral["t2"], " ", 7),
-		FillOrLimit(m.Collateral["t3"], " ", 7),
-		FillOrLimit(m.Collateral["t4"], " ", 7),
+		"%s  | %s | %s  | %s\n",
+		FillOrLimit(ConvertNumber(m.Collateral["t1"], 0), " ", 9),
+		FillOrLimit(ConvertNumber(m.Collateral["t2"], 0), " ", 9),
+		FillOrLimit(ConvertNumber(m.Collateral["t3"], 0), " ", 9),
+		FillOrLimit(ConvertNumber(m.Collateral["t4"], 0), " ", 9),
 	)
+
 	return
 }
