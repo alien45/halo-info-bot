@@ -35,7 +35,7 @@ type DEX struct {
 	CachedTickerLastUpdated time.Time
 }
 
-// Init instantiates HaloDEXHelper struct
+// Init instantiates DEX struct with required values
 //
 // Params:
 // gqlURL string : GraphQL based API URL
@@ -44,7 +44,8 @@ func (dex *DEX) Init(gqlURL string, publicURL string) {
 	dex.GQLURL = gqlURL
 	dex.PublicURL = publicURL
 	dex.CachedTickerExpireMins = 3
-	dex.CachedTokenExpireMins = 720 // Update twice everyday
+	// Update list of tokens twice everyday
+	dex.CachedTokenExpireMins = 720
 	return
 }
 
@@ -65,9 +66,9 @@ type Trade struct {
 // FormatTrades transforms Trade attributes into formatted signle line string
 func (*DEX) FormatTrades(trades []Trade) (s string) {
 	if len(trades) == 0 {
-		return "No trades available"
+		return "No data available"
 	}
-	s = "diff\n  Price        | Amount      | hh:mm:ss DD-MMM\n" + DashLine
+	s = "  Price        | Amount      | hh:mm:ss DD-MMM\n" + DashLine
 	for _, trade := range trades {
 		if trade.IsBuy {
 			s += "+ "
@@ -100,7 +101,7 @@ func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string) (trades []Trad
 	return dex.GetTradesFromResult(responseBytes, baseAddr)
 }
 
-// GetTradesFromResult ...
+// GetTradesFromResult extracts list of trades from the byte array of the API response
 func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string) (trades []Trade, err error) {
 	tradesResult := struct {
 		Data struct {
@@ -128,6 +129,7 @@ func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string) (tr
 		trades[i].Amount = trades[i].AmountGet / 1e18
 		trades[i].Price = trades[i].AmountGive / trades[i].AmountGet
 	}
+	fmt.Println(NowTS(), " [DEX] [GetTrades] received trades: ", len(trades))
 	return
 }
 
@@ -166,23 +168,23 @@ func (dex *DEX) GetTradesByTime(quoteAddr, baseAddr string, blockTime time.Time)
 
 // Ticker describes a HaloDEX ticker response
 type Ticker struct {
-	Pair               string  `json:"pair"`                      //": "HALO/ETH",
-	BaseTicker         string  `json:"baseTicker"`                //": "ETH",
-	QuoteTicker        string  `json:"quoteTicker"`               //": "HALO",
-	Base               string  `json:"base"`                      //": "0xd314d564c36c1b9fbbf6b440122f84da9a551029",
-	Quote              string  `json:"quote"`                     //": "0x0000000000000000000000000000000000000000",
-	QuoteVolume        string  `json:"quoteVolume"`               //": "0.00000000",
-	BaseVolume         string  `json:"baseVolume"`                //": "0.00000000",
-	Bid                string  `json:"bid"`                       //": "0.00000000",
-	Ask                string  `json:"ask"`                       //": "0.00000000",
-	Avg                string  `json:"avg"`                       //": "0.00000000",
-	TwoFourQuoteVolume float64 `json:"twoFourQuoteVolume,string"` //": "1963.26898478",
-	TwoFourBaseVolume  float64 `json:"twoFourBaseVolume,string"`  //": "31.19938919",
-	TwoFourBid         float64 `json:"twoFourBid,string"`         //": "0.01612903",
-	TwoFourAsk         float64 `json:"twoFourAsk,string"`         //": "0.01500000",
-	TwoFourAvg         float64 `json:"twoFourAvg,string"`         //": "0.01558046",
-	Last               float64 `json:"last,string"`               //": "0.01550000",
-	Timestamp          int64   `json:"timestamp,string"`          //": "1541851612755"
+	Pair               string  `json:"pair"`
+	BaseTicker         string  `json:"baseTicker"`
+	QuoteTicker        string  `json:"quoteTicker"`
+	Base               string  `json:"base"`
+	Quote              string  `json:"quote"`
+	QuoteVolume        string  `json:"quoteVolume"`
+	BaseVolume         string  `json:"baseVolume"`
+	Bid                string  `json:"bid"`
+	Ask                string  `json:"ask"`
+	Avg                string  `json:"avg"`
+	TwoFourQuoteVolume float64 `json:"twoFourQuoteVolume,string"`
+	TwoFourBaseVolume  float64 `json:"twoFourBaseVolume,string"`
+	TwoFourBid         float64 `json:"twoFourBid,string"`
+	TwoFourAsk         float64 `json:"twoFourAsk,string"`
+	TwoFourAvg         float64 `json:"twoFourAvg,string"`
+	Last               float64 `json:"last,string"`
+	Timestamp          int64   `json:"timestamp,string"`
 	// External/calculated attributes
 	LastPriceUSD        float64
 	TwoFourBidUSD       float64
@@ -191,6 +193,37 @@ type Ticker struct {
 	QuoteTokenSupply    float64
 	QuoteTokenMarketCap float64
 	LastUpdated         time.Time
+}
+
+// Format formats important ticker values into a string
+func (ticker *Ticker) Format() string {
+	base := FillOrLimit(ticker.BaseTicker, " ", 6)
+	return fmt.Sprintf(""+
+		"Pair          : %s\n"+DashLine+
+		"Last Price    : %.8f %s | $%.8f\n"+DashLine+
+		"24H High      : %.8f %s | $%.8f\n"+DashLine+
+		"24H Low       : %.8f %s | $%.8f\n"+DashLine+
+		"Total Supply  : %s\n"+DashLine+
+		"Market Cap USD: $%s\n"+DashLine+
+		"24H Volume    :\n"+DashLine+
+		"      -%s : %s\n"+DashLine+ // Base Bolume
+		"      -%s : %s\n"+DashLine+ // Quote Volume
+		"      -%s : $%s\n"+DashLine+ // USD Volume
+		"Last Updated  : %v UTC\n"+DashLine,
+		ticker.Pair,
+		ticker.Last, base, ticker.LastPriceUSD,
+		ticker.TwoFourAsk, base, ticker.TwoFourAskUSD,
+		ticker.TwoFourBid, base, ticker.TwoFourBidUSD,
+		ConvertNumber(ticker.QuoteTokenSupply, 4),
+		ConvertNumber(ticker.QuoteTokenMarketCap, 4),
+		base,
+		ConvertNumber(ticker.TwoFourBaseVolume, 4),
+		FillOrLimit(ticker.QuoteTicker, " ", 6),
+		ConvertNumber(ticker.TwoFourQuoteVolume, 4),
+		FillOrLimit("USD", " ", 6),
+		ConvertNumber(ticker.TwoFourVolumeUSD, 4),
+		FormatTimeReverse(ticker.LastUpdated.UTC()),
+	)
 }
 
 // GetTicker function retrieves available tickers from HaloDEX. Caching enabled.
@@ -243,37 +276,6 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 	return
 }
 
-// Format formats important ticker values into a string
-func (ticker *Ticker) Format() string {
-	base := FillOrLimit(ticker.BaseTicker, " ", 6)
-	return fmt.Sprintf(""+
-		"Pair          : %s\n"+DashLine+
-		"Last Price    : %.8f %s | $%.8f\n"+DashLine+
-		"24H High      : %.8f %s | $%.8f\n"+DashLine+
-		"24H Low       : %.8f %s | $%.8f\n"+DashLine+
-		"Total Supply  : %s\n"+DashLine+
-		"Market Cap USD: $%s\n"+DashLine+
-		"24H Volume    :\n"+DashLine+
-		"      -%s : %s\n"+DashLine+ // Base Bolume
-		"      -%s : %s\n"+DashLine+ // Quote Volume
-		"      -%s : $%s\n"+DashLine+ // USD Volume
-		"Last Updated  : %v UTC\n"+DashLine,
-		ticker.Pair,
-		ticker.Last, base, ticker.LastPriceUSD,
-		ticker.TwoFourAsk, base, ticker.TwoFourAskUSD,
-		ticker.TwoFourBid, base, ticker.TwoFourBidUSD,
-		ConvertNumber(ticker.QuoteTokenSupply, 4),
-		ConvertNumber(ticker.QuoteTokenMarketCap, 4),
-		base,
-		ConvertNumber(ticker.TwoFourBaseVolume, 4),
-		FillOrLimit(ticker.QuoteTicker, " ", 6),
-		ConvertNumber(ticker.TwoFourQuoteVolume, 4),
-		FillOrLimit("USD", " ", 6),
-		ConvertNumber(ticker.TwoFourVolumeUSD, 4),
-		FormatTimeReverse(ticker.LastUpdated.UTC()),
-	)
-}
-
 // Order describes a HaloDEX order item
 type Order struct {
 	Trade
@@ -310,22 +312,8 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	return
 }
 
-// GetOrders retrieves HaloDEX orders by user address
-func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []Order, err error) {
-	//quick and dirty GQL query
-	gqlQueryStr := `{
-		"operationName": "users",
-		"query": "query users($userAddress: String!, $baseAddress: String!, $quoteAddress: String!) ` +
-		`{\norders(where: {user: $userAddress, deleted: false, OR: [{tokenGive: $baseAddress, tokenGet: $quoteAddress}, {tokenGive: $quoteAddress, tokenGet: $baseAddress}]}, ` +
-		`orderBy: blockTimestamp_DESC, first: ` + limit + `) {id amountGet amountGive blockTimestamp contract ` +
-		`expires nonce deleted filled timestamp lastUpdated transactionID tokenGet tokenGive orderHash user __typename}}",
-		"variables": { 
-			"userAddress" : "` + address + `",
-			"baseAddress" : "` + baseAddr + `",
-			"quoteAddress" : "` + quoteAddr + `"
-		  }
-		}`
-
+// GetOrdersFromResult extracts orders from API response
+func (dex DEX) GetOrdersFromResult(gqlQueryStr, quoteAddr string) (orders []Order, err error) {
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
@@ -361,6 +349,47 @@ func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []
 		orders[i].Price = orders[i].AmountGive / orders[i].AmountGet
 	}
 	return
+}
+
+// GetOrders retrieves HaloDEX orders by user address
+func (dex DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []Order, err error) {
+	gqlQueryStr := `{
+		"operationName": "users",
+		"query": "query users($userAddress: String!, $baseAddress: String!, $quoteAddress: String!) ` +
+		`{orders(where: {user: $userAddress, deleted: false, OR: [{tokenGive: $baseAddress, tokenGet: $quoteAddress}, {tokenGive: $quoteAddress, tokenGet: $baseAddress}]}, ` +
+		`orderBy: blockTimestamp_DESC, first: ` + limit + `) {id amountGet amountGive blockTimestamp contract ` +
+		`expires nonce deleted filled timestamp lastUpdated transactionID tokenGet tokenGive orderHash user __typename}}",
+		"variables": { 
+			"userAddress" : "` + address + `",
+			"baseAddress" : "` + baseAddr + `",
+			"quoteAddress" : "` + quoteAddr + `"
+		  }
+		}`
+	addr := quoteAddr
+	return dex.GetOrdersFromResult(gqlQueryStr, addr)
+}
+
+// GetOrderbook retrieves HaloDEX orderbook buy+sell
+func (dex DEX) GetOrderbook(quoteAddr, baseAddr, limit string, buy bool) (orders []Order, err error) {
+	//OR: [{tokenGive: $baseAddress, tokenGet: $quoteAddress}, {tokenGive: $quoteAddress, tokenGet: $baseAddress}]
+	orderBy := "amountGet_DESC"
+	if !buy {
+		quoteAddr, baseAddr = baseAddr, quoteAddr
+		orderBy = "amountGive_ASC"
+	}
+	gqlQueryStr := `{
+		"operationName": "users",
+		"query": "query users($baseAddress: String!, $quoteAddress: String!) ` +
+		`{orders(where: {deleted: false, available_gt: \"0000000000000000000000000000000000000000\", ` +
+		`tokenGive: $baseAddress, tokenGet: $quoteAddress}, ` +
+		`orderBy: ` + orderBy + `, first: ` + limit + `) {id amountGet amountGive blockTimestamp contract ` +
+		`expires nonce deleted filled timestamp lastUpdated transactionID tokenGet tokenGive orderHash user __typename}}",
+		"variables": { 
+			"baseAddress" : "` + baseAddr + `",
+			"quoteAddress" : "` + quoteAddr + `"
+		  }
+		}`
+	return dex.GetOrdersFromResult(gqlQueryStr, quoteAddr)
 }
 
 // Token describes data of available tokens on the HaloDEX

@@ -91,6 +91,8 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		break
 	case "orders":
 		fallthrough
+	case "orderbook":
+		fallthrough
 	case "trades":
 		cmdDexTrades(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses, command)
 		break
@@ -270,6 +272,12 @@ var supportedCommands = map[string]Command{
 		Arguments:   "[quote-symbol] [base-symbol] [limit]",
 		Example:     "!trades halo eth 10 OR, !trades",
 	},
+	// "orderbook": Command{
+	// 	Description: "Buy and sell brderbooks from HaloDEX",
+	// 	IsPublic:    true,
+	// 	Arguments:   "[quote-symbol] [base-symbol] [limit]",
+	// 	Example:     "!orderbook halo eth 10 OR, !orderbook",
+	// },
 	"ticker": Command{
 		Description: "Get ticker information from HaloDEX.",
 		IsPublic:    true,

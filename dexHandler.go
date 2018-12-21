@@ -148,7 +148,6 @@ func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArg
 }
 
 func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArgs, userAddresses []string, numArgs, numAddresses int, command string) {
-	//TODO: swap base-quote if wrong direction provided. Cache available pairs from DEX for this.
 	//TODO: add argument for timezone or allow user to save timezone??
 	tokenAddresses, err := dex.GetTokens()
 	address := ""
@@ -159,7 +158,7 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 	baseAddr := tokenAddresses["ETH"].HaloChainAddress
 	limit := "10"
 
-	if numArgs >= 2 {
+	if numArgs > 1 {
 		// Token symbol supplied
 		quoteTicker, quoteOk := tokenAddresses[strings.ToUpper(cmdArgs[0])]
 		baseTicker, baseOk := tokenAddresses[strings.ToUpper(cmdArgs[1])]
@@ -171,7 +170,7 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 		quoteAddr = quoteTicker.HaloChainAddress
 		baseAddr = baseTicker.HaloChainAddress
 	}
-	if numArgs >= 3 {
+	if numArgs > 2 {
 		// if limit argument is set
 		if l, err := strconv.ParseInt(cmdArgs[2], 10, 32); err == nil && l <= 50 {
 			limit = fmt.Sprint(l)
@@ -183,7 +182,7 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 	}
 	dataStr := ""
 	if command == "orders" {
-		if numArgs >= 4 {
+		if numArgs > 3 {
 			address = strings.ToLower(cmdArgs[3])
 		}
 		if !strings.HasPrefix(address, "0x") {
@@ -205,11 +204,14 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 		orders, err := dex.GetOrders(quoteAddr, baseAddr, limit, address)
 		logErrorTS(debugTag, err)
 		dataStr = dex.FormatOrders(orders)
+	} else if command == "orderbook" {
+		// orderbook, err := dex.GetOrderbook(quoteAddr, baseAddr, limit, true)
+		// logErrorTS(debugTag, err)
+		// dataStr = dex.FormatOrders(orderbook)
 	} else {
-		trades, errT := dex.GetTrades(quoteAddr, baseAddr, limit)
-		err = errT
+		trades, err := dex.GetTrades(quoteAddr, baseAddr, limit)
 		logErrorTS(debugTag, err)
-		dataStr = dex.FormatTrades(trades)
+		dataStr = "diff\n" + dex.FormatTrades(trades)
 	}
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve "+command, debugTag) {
 		return
