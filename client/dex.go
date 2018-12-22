@@ -69,15 +69,24 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 	if len(trades) == 0 {
 		return "No data available"
 	}
+	pricedp, amountdp := 8, 8
+	sign := ""
 	s = "  Price        | Amount       | hh:mm:ss DD-MMM\n" + DashLine
 	for _, trade := range trades {
+		sign = "- "
 		if trade.IsBuy {
-			s += "+ "
-		} else {
-			s += "- "
+			sign = "+ "
 		}
-		s += FillOrLimit(ReadableNum(trade.Price, 8), " ", 12) + " | "
-		s += FillOrLimit(ReadableNum(trade.Amount, 8), " ", 12) + " | "
+		pricedp = 8
+		if trade.Price > 100 {
+			pricedp = 0
+		}
+		amountdp = 8
+		if trade.Amount > 100 {
+			amountdp = 0
+		}
+		s += sign + FillOrLimit(ReadableNum(trade.Price, pricedp), " ", 12) + " | "
+		s += FillOrLimit(ReadableNum(trade.Amount, amountdp), " ", 12) + " | "
 		s += FormatTimeReverse(trade.Time.UTC()) + "\n" + DashLine
 	}
 	return
@@ -294,19 +303,28 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	if len(orders) == 0 {
 		return "No orders available"
 	}
+	pricedp, amountdp := 8, 8
+	sign := ""
 	s = "diff\n  Price      | Amount    |Done| hh:mm:ss DD-MMM\n" + DashLine
 	for _, order := range orders {
+		sign = "- "
 		if order.IsBuy {
-			s += "+ "
-		} else {
-			s += "- "
+			sign = "+ "
+		}
+		pricedp = 8
+		if order.Price > 100 {
+			pricedp = 0
+		}
+		amountdp = 8
+		if order.Amount > 100 {
+			amountdp = 0
 		}
 		percentDP := "0"
 		if order.FilledPercent < 10 {
 			percentDP = "1"
 		}
-		s += FillOrLimit(ReadableNum(order.Price, 8), " ", 10) + " | "
-		s += FillOrLimit(ReadableNum(order.Amount, 8), " ", 9) + " |"
+		s += sign + FillOrLimit(ReadableNum(order.Price, pricedp), " ", 10) + " | "
+		s += FillOrLimit(ReadableNum(order.Amount, amountdp), " ", 9) + " |"
 		s += FillOrLimit(fmt.Sprintf("%."+percentDP+"f%%", order.FilledPercent), " ", 4) + "| "
 		s += FormatTimeReverse(order.Time.UTC()) + "\n" + DashLine
 	}
