@@ -12,14 +12,21 @@ import (
 
 // MNDApp struct handles API calls to Halo Masternodes DApp
 type MNDApp struct {
-	BaseURL       string             `json:"url"`
-	MainnetGQL    string             `json:"urlgql"`
-	BlockReward   float64            `json:"blockreward"`
-	BlockTimeMins float64            `json:"blocktimemins"`
-	Collateral    map[string]float64 `json:"collateral"`
-	RewardPool    Payout
-	LastPayout    Payout
-	LastAlert     time.Time
+	BaseURL    string `json:"url"`
+	MainnetGQL string `json:"urlgql"`
+	// Number of coins minted on each minting cycle
+	BlockReward float64 `json:"blockreward"`
+	// Number of minutes of each minting cycle. NOT the actual block time of the chain.
+	BlockTimeMins float64 `json:"blocktimemins"`
+	// Collateral required for different tiers
+	Collateral map[string]float64 `json:"collateral"`
+	// Smart contract address to retrieve MN tier distribution
+	TierDistContract string `json:"tierdistcontract"`
+	// Smart contract address to retrieve minting pool balance and service fees
+	RewardPoolContract string `json:"rewardpoolcontract"`
+	RewardPool         Payout
+	LastPayout         Payout
+	LastAlert          time.Time
 }
 
 // Init instantiates MNDApp  struct
@@ -220,12 +227,12 @@ func (m MNDApp) GetETHCallWeiToBalance(contractAddress, data string) (balance fl
 
 // GetServiceFeesBalance retrieves all service fees collected by Halo Platform during the on-going payout cycle
 func (m MNDApp) GetServiceFeesBalance() (fees float64, err error) {
-	return m.GetETHCallWeiToBalance("0xc660934ec084698e373ac844ce29cf27b104f696", "0xbc3cde60")
+	return m.GetETHCallWeiToBalance(m.RewardPoolContract, "0xbc3cde60")
 }
 
 // GetMintedBalance retrieves the total minted pool balance during the on-going payout cycle
 func (m MNDApp) GetMintedBalance() (balance float64, err error) {
-	return m.GetETHCallWeiToBalance("0xc660934ec084698e373ac844ce29cf27b104f696", "0x405187f4")
+	return m.GetETHCallWeiToBalance(m.RewardPoolContract, "0x405187f4")
 }
 
 // GetFormattedPoolData returns reward pool data including minting and service pool balances as formatted strings
@@ -250,13 +257,13 @@ func (m MNDApp) GetFormattedPoolData() (s string, err error) {
 }
 
 // GetTierDistribution retrieves the total number of active MNs for a specific tier
-func (m *MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
+func (m MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 	if tierNo < 1 || tierNo > 4 {
 		err = errors.New("Invalid tier")
 		return
 	}
 	filled, err = m.GetETHCallWeiToBalance(
-		"0x3ea4f99eac448db9938b714b42cbeccc0d401339",
+		m.TierDistContract,
 		"0x993ed2a5000000000000000000000000000000000000000000000000000000000000000"+fmt.Sprint(tierNo),
 	)
 	if err == nil {
