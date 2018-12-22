@@ -220,12 +220,12 @@ func (m MNDApp) GetETHCallWeiToBalance(contractAddress, data string) (balance fl
 
 // GetServiceFeesBalance retrieves all service fees collected by Halo Platform during the on-going payout cycle
 func (m MNDApp) GetServiceFeesBalance() (fees float64, err error) {
-	return m.GetETHCallWeiToBalance("0xd674dd3cdf07139ffda85b8589f0e2ca600f996e", "0xbc3cde60")
+	return m.GetETHCallWeiToBalance("0xc660934ec084698e373ac844ce29cf27b104f696", "0xbc3cde60")
 }
 
 // GetMintedBalance retrieves the total minted pool balance during the on-going payout cycle
 func (m MNDApp) GetMintedBalance() (balance float64, err error) {
-	return m.GetETHCallWeiToBalance("0xd674dd3cdf07139ffda85b8589f0e2ca600f996e", "0x405187f4")
+	return m.GetETHCallWeiToBalance("0xc660934ec084698e373ac844ce29cf27b104f696", "0x405187f4")
 }
 
 // GetFormattedPoolData returns reward pool data including minting and service pool balances as formatted strings
@@ -256,7 +256,7 @@ func (m *MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 		return
 	}
 	filled, err = m.GetETHCallWeiToBalance(
-		"0xb4bdce55ce08ad23715f160e9fed5f99275a9045",
+		"0x3ea4f99eac448db9938b714b42cbeccc0d401339",
 		"0x993ed2a5000000000000000000000000000000000000000000000000000000000000000"+fmt.Sprint(tierNo),
 	)
 	if err == nil {
