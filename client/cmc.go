@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 	// Use cache if available and not expired
 	if cmc.DailyCreditUsed == cmc.DailyCreditLimit || (len(cachedCMCTickers) > 0 &&
 		time.Now().Sub(cmc.CacheLastUpdated).Minutes() < cmc.CacheExpireMins) {
-		fmt.Println(NowTS(), " [CMC] [GetTicker] Using cached tickers")
+		log.Println("[CMC] [GetTicker] Using cached tickers")
 		return cmc.FindTicker(nameOrSymbol)
 	}
 	// Cache expired. Update cache
@@ -47,7 +48,7 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 		return
 	}
 
-	fmt.Println(NowTS(), " [CMC] [GetTicker] Updating CMC tickers cache from: ", tickerURL)
+	log.Println("[CMC] [GetTicker] Updating CMC tickers cache")
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", tickerURL, nil)
 	if err != nil {

@@ -134,3 +134,22 @@ func SaveJSONFileLarge(filename string, data interface{}) (err error) {
 	_, err = file.Write(dataBytes)
 	return
 }
+
+// ReadableNum returns number formatted with commas
+func ReadableNum(num float64, dp int) (s string) {
+	ar := strings.Split(fmt.Sprintf("%."+fmt.Sprint(dp)+"f", num), ".")
+	numDigits := len(ar[0])
+	numCommas := int(numDigits)
+	s = ar[0]
+	for i := 1; i <= numCommas; i++ {
+		pos := numDigits - i*3
+		if pos <= 0 {
+			continue
+		}
+		s = s[:pos] + "," + s[pos:]
+	}
+	if dp > 0 {
+		s += "." + ar[1]
+	}
+	return
+}

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -15,7 +16,19 @@ func cmdBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs,
 	balance := float64(0)
 	var err error
 	balfunc := explorer.GetHaloBalance
+	ticker := "HALO"
+	dp := 0
 
+	// Check if balance enquiry is for Ethereum
+	if numArgs > 0 && strings.ToLower(cmdArgs[numArgs-1]) == "eth" {
+		balfunc = etherscan.GetEthBalance
+		logTS(debugTag, "Ethereum address supplied")
+		// remove token argument to keep only addresses/keywords
+		cmdArgs = cmdArgs[:numArgs-1]
+		numArgs = len(cmdArgs)
+		ticker = "ETH"
+		dp = 8
+	}
 	// Handle coin/token balance commands
 	if numArgs == 0 || cmdArgs[0] == "" {
 		// No address/address book index supplied
@@ -26,14 +39,6 @@ func cmdBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs,
 		// Use first item from user's address book
 		cmdArgs = append(cmdArgs, addresses[0])
 		numArgs++
-	}
-
-	// Check if balance enquiry is for Ethereum
-	if cmdArgs[numArgs-1] == "eth" {
-		balfunc = etherscan.GetEthBalance
-		logTS(debugTag, "Ethereum address supplied")
-		// remove token argument to keep only addresses/keywords
-		cmdArgs = cmdArgs[:numArgs-1]
 	}
 
 	address = cmdArgs[0]
@@ -61,7 +66,7 @@ func cmdBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs,
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve balance for "+address, debugTag) {
 		return
 	}
-	txt = fmt.Sprintf("Balance: %.10f", balance)
+	txt = fmt.Sprintf("Balance: %s %s", client.ReadableNum(balance, dp), ticker)
 SendMessage:
 	_, err = discordSend(discord, channelID, "js\n"+txt, true)
 	logErrorTS(debugTag, err)

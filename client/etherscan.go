@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -26,7 +27,7 @@ func (etherscan Etherscan) GetEthBalance(address string) (balance float64, err e
 		address,
 		etherscan.APIKey,
 	)
-	fmt.Println(NowTS(), " [Etherscan] [GetEthBalance] Retrieving ethereum balance from Etherscan: ", url)
+	log.Println("[Etherscan] [GetEthBalance] Retrieving ethereum balance from Etherscan")
 	response, err := http.Get(url)
 	if err != nil {
 		return 0, err

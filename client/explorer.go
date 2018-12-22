@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -29,14 +30,14 @@ func (explorer *Explorer) Init(baseURL, mainnetGQL string) {
 func (explorer Explorer) GetHaloSupply() (total float64, err error) {
 	// Use cache if available and not expired
 	if explorer.CachedTotalSupply != 0 && time.Now().Sub(explorer.CacheLastUpdated).Minutes() < explorer.CacheExpireMins {
-		fmt.Println(NowTS(), " [Explorer] [GetHaloSupply] Using cached Halo supply")
+		log.Println("[Explorer] [GetHaloSupply] Using cached Halo supply")
 		total = explorer.CachedTotalSupply
 		return
 	}
 
 	// Update cache
 	tickerURL := explorer.BaseURL + "/coin/total"
-	fmt.Println(NowTS(), " [Explorer] [GetHaloSupply] Retrieving total Halo supply from: ", tickerURL)
+	log.Println("[Explorer] [GetHaloSupply] Retrieving total Halo supply ")
 	response, err := http.Get(tickerURL)
 	if err != nil {
 		return
@@ -49,7 +50,7 @@ func (explorer Explorer) GetHaloSupply() (total float64, err error) {
 
 // GetHaloBalance retrieves Halo address balance
 func (explorer Explorer) GetHaloBalance(address string) (balance float64, err error) {
-	fmt.Println(NowTS(), " [Explorer] [GetHaloBalance] Retrieving Halo balance.")
+	log.Println("[Explorer] [GetHaloBalance] Retrieving Halo balance.")
 	//quick and dirty GQL query
 	gqlQueryStr := fmt.Sprintf(
 		`{

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	client "github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
@@ -130,7 +131,7 @@ func panicIf(err error, msg string) {
 }
 
 func logTS(debugTag, str string) {
-	fmt.Printf("%s [%s] : %s\n", client.NowTS(), debugTag, str)
+	log.Printf("[%s] : %s\n", debugTag, str)
 }
 
 func logErrorTS(debugTag string, err error) (hasError bool) {
