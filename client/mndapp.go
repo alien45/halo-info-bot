@@ -55,19 +55,19 @@ func (p *Payout) Format() (s string) {
 		"Minted : %s    | Fees     : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine+
 		"Time   : %s UTC (approx.)\n",
-		FillOrLimit(ReadableNum(p.Minted, 0), " ", 10),
-		FillOrLimit(ReadableNum(p.Fees, 0), " ", 10),
-		FillOrLimit(ReadableNum(p.Total, 0), " ", 10),
+		FillOrLimit(FormatNum(p.Minted, 0), " ", 10),
+		FillOrLimit(FormatNum(p.Fees, 0), " ", 10),
+		FillOrLimit(FormatNum(p.Total, 0), " ", 10),
 		p.Duration,
 		FillOrLimit(p.Time.UTC().String(), " ", 16),
 	)
 	s += fmt.Sprintf(DashLine+
 		"Tier 1     | Tier 2    | Tier 3    | Tier 4\n"+DashLine+
 		"%s     | %s    | %s    | %s\n"+DashLine,
-		FillOrLimit(ReadableNum(p.Tiers["t1"], 0), " ", 6),
-		FillOrLimit(ReadableNum(p.Tiers["t2"], 0), " ", 6),
-		FillOrLimit(ReadableNum(p.Tiers["t3"], 0), " ", 6),
-		FillOrLimit(ReadableNum(p.Tiers["t4"], 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t1"], 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t2"], 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t3"], 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t4"], 0), " ", 6),
 	)
 	return
 }
@@ -126,7 +126,7 @@ func (m Masternode) Format() string {
 		colorSign,
 		m.Address[:6]+"..."+m.Address[mlen-4:],
 		m.Tier,
-		FillOrLimit(ReadableNum(m.Shares, 0), " ", 7),
+		FillOrLimit(FormatNum(m.Shares, 0), " ", 7),
 		status,
 	)
 }
@@ -177,16 +177,16 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 	summary = "================== Summary ===================\n" +
 		"Invested  | Active    | Inactive  | Nodes\n" + DashLine +
 		fmt.Sprintf("%s| %s| %s| %d\n",
-			FillOrLimit(ReadableNum(totalInvested, 0), " ", 10),
-			FillOrLimit(ReadableNum(totalInvested-inactive, 0), " ", 10),
-			FillOrLimit(ReadableNum(inactive, 0), " ", 10),
+			FillOrLimit(FormatNum(totalInvested, 0), " ", 10),
+			FillOrLimit(FormatNum(totalInvested-inactive, 0), " ", 10),
+			FillOrLimit(FormatNum(inactive, 0), " ", 10),
 			num)
 	summary += "\nTier 1    | Tier 2    | Tier 3    | Tier 4\n" + DashLine +
 		fmt.Sprintf("%s| %s| %s| %s",
-			FillOrLimit(ReadableNum(tierShares[1], 0), " ", 10),
-			FillOrLimit(ReadableNum(tierShares[2], 0), " ", 10),
-			FillOrLimit(ReadableNum(tierShares[3], 0), " ", 10),
-			FillOrLimit(ReadableNum(tierShares[4], 0), " ", 10),
+			FillOrLimit(FormatNum(tierShares[1], 0), " ", 10),
+			FillOrLimit(FormatNum(tierShares[2], 0), " ", 10),
+			FillOrLimit(FormatNum(tierShares[3], 0), " ", 10),
+			FillOrLimit(FormatNum(tierShares[4], 0), " ", 10),
 		)
 	return
 }
@@ -255,9 +255,9 @@ func (m MNDApp) GetFormattedPoolData() (s string, err error) {
 	s = fmt.Sprintf("-----------------Minting Pool------------------\n"+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine,
-		FillOrLimit(ReadableNum(minted, 0), " ", 10),
-		FillOrLimit(ReadableNum(fees, 0), " ", 10),
-		FillOrLimit(ReadableNum(minted+fees, 0), " ", 10), duration,
+		FillOrLimit(FormatNum(minted, 0), " ", 10),
+		FillOrLimit(FormatNum(fees, 0), " ", 10),
+		FillOrLimit(FormatNum(minted+fees, 0), " ", 10), duration,
 	)
 	return
 }
@@ -309,10 +309,10 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 		"__________________/Per 500\\____________________\n"+
 
 		"%s     | %s    | %s     | %s\n",
-		FillOrLimit(ReadableNum(l.Tiers["t1"], 0), " ", 6),
-		FillOrLimit(ReadableNum(l.Tiers["t2"]/2, 0), " ", 6),
-		FillOrLimit(ReadableNum(l.Tiers["t3"]/5, 0), " ", 6),
-		FillOrLimit(ReadableNum(l.Tiers["t4"]/15, 0), " ", 6),
+		FillOrLimit(FormatNum(l.Tiers["t1"], 0), " ", 6),
+		FillOrLimit(FormatNum(l.Tiers["t2"]/2, 0), " ", 6),
+		FillOrLimit(FormatNum(l.Tiers["t3"]/5, 0), " ", 6),
+		FillOrLimit(FormatNum(l.Tiers["t4"]/15, 0), " ", 6),
 	)
 	lastRMins := l.Minted / m.BlockReward * m.BlockTimeMins
 	t1DailyROI := (l.Tiers["t1"] / lastRMins * 1440) / m.Collateral["t1"] * 100
@@ -343,18 +343,18 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 	s += fmt.Sprintf("                 ____________\n"+
 		"________________/Filled Nodes\\_________________\n"+
 		"%s    | %s   | %s    | %s\n",
-		FillOrLimit(ReadableNum(t1, 0), " ", 7),
-		FillOrLimit(ReadableNum(t2, 0), " ", 7),
-		FillOrLimit(ReadableNum(t3, 0), " ", 7),
-		FillOrLimit(ReadableNum(t4, 0), " ", 7),
+		FillOrLimit(FormatNum(t1, 0), " ", 7),
+		FillOrLimit(FormatNum(t2, 0), " ", 7),
+		FillOrLimit(FormatNum(t3, 0), " ", 7),
+		FillOrLimit(FormatNum(t4, 0), " ", 7),
 	)
 	s += fmt.Sprintf("                  __________\n"+
 		"_________________/Collateral\\__________________\n"+
 		"%s  | %s | %s  | %s\n",
-		FillOrLimit(ConvertNumber(m.Collateral["t1"], 0), " ", 9),
-		FillOrLimit(ConvertNumber(m.Collateral["t2"], 0), " ", 9),
-		FillOrLimit(ConvertNumber(m.Collateral["t3"], 0), " ", 9),
-		FillOrLimit(ConvertNumber(m.Collateral["t4"], 0), " ", 9),
+		FillOrLimit(FormatNumShort(m.Collateral["t1"], 0), " ", 9),
+		FillOrLimit(FormatNumShort(m.Collateral["t2"], 0), " ", 9),
+		FillOrLimit(FormatNumShort(m.Collateral["t3"], 0), " ", 9),
+		FillOrLimit(FormatNumShort(m.Collateral["t4"], 0), " ", 9),
 	)
 
 	return

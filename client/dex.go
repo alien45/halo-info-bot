@@ -85,8 +85,8 @@ func (*DEX) FormatTrades(trades []Trade) (s string) {
 		if trade.Amount > 100 {
 			amountdp = 0
 		}
-		s += sign + FillOrLimit(ReadableNum(trade.Price, pricedp), " ", 12) + " | "
-		s += FillOrLimit(ReadableNum(trade.Amount, amountdp), " ", 12) + " | "
+		s += sign + FillOrLimit(FormatNum(trade.Price, pricedp), " ", 12) + " | "
+		s += FillOrLimit(FormatNum(trade.Amount, amountdp), " ", 12) + " | "
 		s += FormatTimeReverse(trade.Time.UTC()) + "\n" + DashLine
 	}
 	return
@@ -224,14 +224,14 @@ func (ticker *Ticker) Format() string {
 		ticker.Last, base, ticker.LastPriceUSD,
 		ticker.TwoFourAsk, base, ticker.TwoFourAskUSD,
 		ticker.TwoFourBid, base, ticker.TwoFourBidUSD,
-		ConvertNumber(ticker.QuoteTokenSupply, 4),
-		ConvertNumber(ticker.QuoteTokenMarketCap, 4),
+		FormatNumShort(ticker.QuoteTokenSupply, 4),
+		FormatNumShort(ticker.QuoteTokenMarketCap, 4),
 		base,
-		ConvertNumber(ticker.TwoFourBaseVolume, 4),
+		FormatNumShort(ticker.TwoFourBaseVolume, 4),
 		FillOrLimit(ticker.QuoteTicker, " ", 6),
-		ConvertNumber(ticker.TwoFourQuoteVolume, 4),
+		FormatNumShort(ticker.TwoFourQuoteVolume, 4),
 		FillOrLimit("USD", " ", 6),
-		ConvertNumber(ticker.TwoFourVolumeUSD, 4),
+		FormatNumShort(ticker.TwoFourVolumeUSD, 4),
 		FormatTimeReverse(ticker.LastUpdated.UTC()),
 	)
 }
@@ -323,8 +323,8 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 		if order.FilledPercent < 10 {
 			percentDP = "1"
 		}
-		s += sign + FillOrLimit(ReadableNum(order.Price, pricedp), " ", 10) + " | "
-		s += FillOrLimit(ReadableNum(order.Amount, amountdp), " ", 9) + " |"
+		s += sign + FillOrLimit(FormatNum(order.Price, pricedp), " ", 10) + " | "
+		s += FillOrLimit(FormatNum(order.Amount, amountdp), " ", 9) + " |"
 		s += FillOrLimit(fmt.Sprintf("%."+percentDP+"f%%", order.FilledPercent), " ", 4) + "| "
 		s += FormatTimeReverse(order.Time.UTC()) + "\n" + DashLine
 	}
@@ -616,8 +616,8 @@ func (dex *DEX) GetBalancesFormatted(address string, tickers []string, showZeroB
 		}
 		s += fmt.Sprintf("  %s| %s | %s\n%s",
 			FillOrLimit(tickers[i], " ", 8),
-			FillOrLimit(ReadableNum(tokenBalance[0].Balance, 8), " ", 14),
-			FillOrLimit(ReadableNum(tokenBalance[0].Available, 8), " ", 14),
+			FillOrLimit(FormatNum(tokenBalance[0].Balance, 8), " ", 14),
+			FillOrLimit(FormatNum(tokenBalance[0].Available, 8), " ", 14),
 			DashLine,
 		)
 	}

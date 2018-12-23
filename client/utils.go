@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"os"
 	"strconv"
@@ -41,35 +42,42 @@ func WeiHexStrToFloat64(wei string) (balance float64, err error) {
 	return
 }
 
-// ConvertNumber converts large numbers to into readable string
-// Params:
-// num float64   :
-// dp int : number of decimal places to be rounded to. No rounding if 0 > precision. Max 18 DP.
-func ConvertNumber(num float64, decimalPlaces int) string {
-	divideBy := float64(1)
-	name := ""
-	if num >= 1e12 { // trillion
-		divideBy = 1e12
-		name = "T"
-	} else if num >= 1e9 { // billion
-		divideBy = 1e9
-		name = "B"
-	} else if num >= 1e6 { // million
-		divideBy = 1e6
-		name = "M"
-	} else if num >= 1e3 { // thousand
-		divideBy = 1e3
-		name = "K"
+// FormatNum returns number formatted with commas
+func FormatNum(num float64, dp int) (s string) {
+	ar := strings.Split(fmt.Sprintf("%."+fmt.Sprint(dp)+"f", num), ".")
+	numDigits := len(ar[0])
+	s = ar[0]
+	for i := 1; i <= int(numDigits/3); i++ {
+		pos := numDigits - i*3
+		s = s[:pos] + "," + s[pos:]
 	}
-	if decimalPlaces < 0 {
-		// No decimal places
-		decimalPlaces = 0
-	} else if decimalPlaces > 18 {
-		// Max decimal places
-		decimalPlaces = 18
+	if dp > 0 {
+		s += "." + ar[1]
 	}
+	return
+}
 
-	return fmt.Sprintf("%."+fmt.Sprint(decimalPlaces)+"f %s", num/divideBy, name)
+var numShortNames = map[float64]string{
+	1e3:  "K",  // Thousand
+	1e6:  "M",  // Million
+	1e9:  "B",  // Billion
+	1e12: "T",  // Trillion
+	1e15: "Q",  // Quadrillion
+	1e18: "Qn", // Quintillion
+}
+
+// FormatNumShort converts numbers to into readable string with initials of large number names such as B for Billion etc
+//
+// Params:
+// num float64 : number to convert. For integers cast to float64 first: float64(num)
+// dp  int	   : number of decimal places to be rounded to. No rounding if 0 > precision. Max 18 DP.
+func FormatNumShort(num float64, dp int) string {
+	if dp < 0 {
+		// No decimal places
+		dp = 0
+	}
+	n := math.Pow10((len(fmt.Sprint(int64(num))) / 3) * 3)
+	return fmt.Sprintf("%."+fmt.Sprint(dp)+"f %s", num/n, numShortNames[n])
 }
 
 // FormatTimeReverse formats time to string in the following format: HH:MM:SS DD-Mon
@@ -132,24 +140,5 @@ func SaveJSONFileLarge(filename string, data interface{}) (err error) {
 	}
 	defer file.Close()
 	_, err = file.Write(dataBytes)
-	return
-}
-
-// ReadableNum returns number formatted with commas
-func ReadableNum(num float64, dp int) (s string) {
-	ar := strings.Split(fmt.Sprintf("%."+fmt.Sprint(dp)+"f", num), ".")
-	numDigits := len(ar[0])
-	numCommas := int(numDigits)
-	s = ar[0]
-	for i := 1; i <= numCommas; i++ {
-		pos := numDigits - i*3
-		if pos <= 0 {
-			continue
-		}
-		s = s[:pos] + "," + s[pos:]
-	}
-	if dp > 0 {
-		s += "." + ar[1]
-	}
 	return
 }

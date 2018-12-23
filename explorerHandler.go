@@ -66,7 +66,7 @@ func cmdBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs,
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve balance for "+address, debugTag) {
 		return
 	}
-	txt = fmt.Sprintf("Balance: %s %s", client.ReadableNum(balance, dp), ticker)
+	txt = fmt.Sprintf("Balance: %s %s", client.FormatNum(balance, dp), ticker)
 SendMessage:
 	_, err = discordSend(discord, channelID, "js\n"+txt, true)
 	logErrorTS(debugTag, err)

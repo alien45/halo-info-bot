@@ -12,7 +12,7 @@ import (
 
 var cachedCMCTickers map[string]CMCTicker
 
-// CMC struct handles all API requests relating to CoinMarketCap.com
+// CMC acts as the CoinMarketCap.com Professional API client.
 type CMC struct {
 	BaseURL          string `json:"url"`
 	APIKEY           string `json:"apikey"`
@@ -65,7 +65,10 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 		return
 	}
 
-	tickersResult := CMCTickersResult{}
+	tickersResult := struct {
+		Status CMCResultStatus `json:"status,string,omitempty"`
+		Data   []CMCTicker     `json:"data"`
+	}{}
 	err = json.NewDecoder(response.Body).Decode(&tickersResult)
 	if err != nil {
 		return
@@ -160,8 +163,8 @@ func (ticker *CMCTicker) Format() string {
 		ticker.Name, ticker.Symbol,
 		ticker.Quote["USD"].Price,
 		ticker.Quote["USD"].PercentChange24H,
-		ConvertNumber(ticker.Quote["USD"].Volume24H, 4),
-		ConvertNumber(ticker.Quote["USD"].MarketCap, 4),
+		FormatNumShort(ticker.Quote["USD"].Volume24H, 4),
+		FormatNumShort(ticker.Quote["USD"].MarketCap, 4),
 		FormatTimeReverse(ticker.LastUpdated.UTC()),
 	)
 }
