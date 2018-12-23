@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	client "github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
@@ -11,6 +12,7 @@ import (
 
 const configFile = "./config.json"
 const discordFile = "./discord.json"
+const debugFile = "./debug.log"
 
 var (
 	botID           string
@@ -60,6 +62,8 @@ type DiscordData struct {
 }
 
 func main() {
+	log.Println("Application started")
+	setLogFile()
 	// Load configuration file
 	configStr, err := client.ReadFile(configFile)
 	panicIf(err, "Failed to read config file")
@@ -144,4 +148,16 @@ func logErrorTS(debugTag string, err error) (hasError bool) {
 
 func saveDiscordFile() (err error) {
 	return client.SaveJSONFile(discordFile, data)
+}
+
+// setLogFile sets log output file
+func setLogFile() {
+	if _, err := os.Stat(debugFile); os.IsNotExist(err) {
+		_, err = os.Create(debugFile)
+		panicIf(err, "Failed to create debug file "+debugFile)
+	}
+	file, err := os.OpenFile(debugFile, os.O_APPEND|os.O_WRONLY, 0666)
+	panicIf(err, "Couldn't open debug file"+debugFile)
+	defer file.Close()
+	log.SetOutput(file)
 }
