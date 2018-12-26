@@ -47,7 +47,7 @@ func FormatNum(num float64, dp int) (s string) {
 	ar := strings.Split(fmt.Sprintf("%."+fmt.Sprint(dp)+"f", num), ".")
 	numDigits := len(ar[0])
 	s = ar[0]
-	for i := 1; i <= int(numDigits/3); i++ {
+	for i := 1; i <= int((numDigits-1)/3); i++ {
 		pos := numDigits - i*3
 		s = s[:pos] + "," + s[pos:]
 	}
