@@ -37,12 +37,16 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 			text = "Message required"
 			goto SendMessage
 		}
+		if strings.ToLower(args[1]) == guildCMD {
+			text = "This command cannot be overridden."
+			goto SendMessage
+		}
 		msg := strings.Join(args[2:], " ")
 		if len(msg) > 500 {
 			text = "Message cannot be more than 500 characters"
 			goto SendMessage
 		}
-		err = addGuildCommand(guildID, args[1], msg)
+		err = addGuildCommand(guildID, strings.ToLower(args[1]), msg)
 		break
 	case "remove", "delete":
 		err = removeGuildCommand(guildID, args[1])
@@ -53,7 +57,7 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 	}
 
 	text = "Action failed"
-	if !logErrorTS("guildcmd", err) {
+	if !logErrorTS(guildCMD, err) {
 		text = "Saved"
 		// generate list of commands
 		generateCommandLists()
@@ -72,7 +76,7 @@ func addGuildCommand(guildID, name, message string) (err error) {
 	data.GuildInfoCommands[guildID][name] = Command{
 		Type:     "text",
 		IsPublic: true,
-		Message:  strings.Replace(strings.Replace(message, `"`, "'", 0), "\n", "[NEWLINE]", 0),
+		Message:  strings.Replace(message, `"`, "'", 0),
 	}
 	return saveDataFile()
 }

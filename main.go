@@ -17,6 +17,7 @@ const dataFile = "./discord.json"
 const commandsFile = "./commands.json"
 const debugFile = "./debug.log"
 const guildAdminRole = "butleradmin" // case-insensitive allowed
+const guildCMD = "guildcmd"
 
 var (
 	botID string
@@ -88,7 +89,6 @@ func main() {
 
 	// generate list of commands
 	generateCommandLists()
-	fmt.Println(commands["sayhello"])
 
 	// address keywords
 	addressKeywords = data.AddressKeywords
@@ -183,7 +183,6 @@ func generateCommandLists() {
 	for cmdName, cmd := range data.GlobalInfoCommands {
 		commands[cmdName] = cmd
 	}
-	fmt.Println("Command after global", commands["sayhello"])
 	// Construct a list of guild specific commands (if any specified in the data file)
 	// along with default and global info commands (overrides default/global info commands if exact name specified)
 	for gID, gCommands := range data.GuildInfoCommands {
@@ -193,14 +192,12 @@ func generateCommandLists() {
 		}
 
 		for cmdName, cmd := range gCommands {
-			if cmdName != "cmd" {
+			if cmdName != guildCMD {
 				// avoid overriding the !cmd command
 				guildCommands[gID][cmdName] = cmd
 			}
 		}
 	}
-
-	fmt.Println("Command after guilds added", commands["sayhello"])
 }
 
 // setLogFile sets log output file
