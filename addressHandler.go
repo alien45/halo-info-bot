@@ -60,7 +60,7 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 		data.AddressBook[user] = append(data.AddressBook[user], addresses[i])
 		delete(addrMap, addresses[i])
 	}
-	err = saveDiscordFile()
+	err = saveDataFile()
 	if logErrorTS(debugTag, err) {
 		txt = "Failed to save changes!"
 		goto SendMessage

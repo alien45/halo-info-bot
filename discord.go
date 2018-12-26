@@ -2,24 +2,10 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
-
-// Command describes bot supported command information
-type Command struct {
-	// Brief/one-liner description about the command
-	Description string
-	// Arguments supported by the command
-	Arguments string
-	// Whether the command can be used in public channels/groups.
-	// If true, the command can only be invoked by texting the "bot user" privately
-	IsPublic bool
-	// An example of how to use the command
-	Example string
-}
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate, commandPrefix string) {
 	user := message.Author
@@ -35,12 +21,13 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	userAddresses := data.AddressBook[username]
 	numAddresses := len(userAddresses)
 	debugTag := "commandHandler"
+
 	cmdArgs := strings.Split(message.Content, " ")
-	command := strings.ToLower(strings.TrimPrefix(cmdArgs[0], commandPrefix))
+	cmdName := strings.ToLower(strings.TrimPrefix(cmdArgs[0], commandPrefix))
 	cmdArgs = cmdArgs[1:]
 	numArgs := len(cmdArgs)
-	cmcTicker, err := cmc.FindTicker(command)
-	_, found := supportedCommands[command]
+	cmcTicker, err := cmc.FindTicker(cmdName)
+	command, found := commands[cmdName]
 	if !found {
 		// Ignore invalid commands on public channels
 		if isPrivateMsg && err != nil && message.GuildID == "" {
@@ -53,7 +40,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			return
 		}
 		// CMC ticker command invoked | !eth, !btc....
-		command = "cmc"
+		cmdName = "cmc"
 		cmdArgs = []string{cmcTicker.Symbol}
 		numArgs = 1
 	}
@@ -61,16 +48,22 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	if numArgs == 0 {
 		cmdArgs = []string{}
 	}
-	if _, found := privateCmds[command]; found && !isPrivateMsg {
+	if _, found := privateCmds[cmdName]; found && !isPrivateMsg {
 		// Private command requested from a channel/server
 		_, err := discordSend(discord, channelID, "Private commands are not allowed in public channels.", true)
 		logErrorTS(debugTag, err)
 		return
 	}
 
-	debugTag = "cmd] [" + command
-	logTS(debugTag, fmt.Sprintf("Author: %s, ChannelID: %s, Message: %s", message.Author, message.ChannelID, message.Content))
-	switch command {
+	debugTag = "cmd] [" + cmdName
+	logTS(debugTag, fmt.Sprintf("Author: %s, GuildID: %s, ChannelID: %s, Message: %s", message.Author, message.GuildID, message.ChannelID, message.Content))
+	if command.Type == "text" {
+		textCmdHandler(discord, message.GuildID, channelID, debugTag, command, cmdArgs, numArgs)
+		return
+	}
+	switch cmdName {
+	case "guildcmd":
+		guildCMDHandler(discord, message)
 	case "help":
 		txt := ""
 		if numArgs > 0 {
@@ -86,6 +79,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	case "balance":
 		cmdBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
 		break
+		break
 	case "ticker":
 		cmdDexTicker(discord, channelID, debugTag, cmdArgs, numArgs)
 		break
@@ -94,7 +88,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	case "orderbook":
 		fallthrough
 	case "trades":
-		cmdDexTrades(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses, command)
+		cmdDexTrades(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses, cmdName)
 		break
 	case "dexbalance": // Private Command
 		cmdDexBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
@@ -128,32 +122,18 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		logErrorTS(debugTag, err)
 		break
 	case "alert":
-		if message.GuildID != "" && username != conf.Client.DiscordBot.RootUser {
+		if message.GuildID != "" && (username != conf.Client.DiscordBot.RootUser ||
+			userHasRole(discord, message.GuildID, message.Author.ID, guildAdminRole)) {
 			// Public channel. Only root user is allowed to send payout alert or enable alerts on public channels
-
-			// isAdmin, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 8)
-			// canManageChannels, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 16)
-			// canManageServer, _ := MemberHasPermission(discord, message.GuildID, message.Author.ID, 32)
-			// fmt.Println(isAdmin, canManageChannels, canManageServer)
-			// fmt.Println(discord.State.UserChannelPermissions(message.Author.ID, channelID))
-			// if !isAdmin && !canManageChannels && !canManageServer {
 			_, err = discordSend(discord, channelID, "Sorry, you are not allowed to manage alerts on this channel.", true)
 			logErrorTS(debugTag, err)
 			return
-			// }
 		}
 		cmdAlert(discord, message.GuildID, channelID, message.Author.ID, username, debugTag, cmdArgs, numArgs)
 		break
 	case "address":
 		cmdAddress(discord, channelID, fmt.Sprint(message.Author), debugTag, cmdArgs, numArgs)
 		break
-	case "chart":
-		url := data.Info["charturl"]
-		if numArgs > 0 && strings.ToLower(cmdArgs[0]) == "dark" {
-			url = data.Info["charturldark"]
-		}
-		_, err = discordSend(discord, channelID, url, false)
-		logErrorTS(debugTag, err)
 	}
 }
 
@@ -210,146 +190,24 @@ func discordSend(discord *discordgo.Session, channelID, message string, codeBloc
 	return
 }
 
-// Generate text for the help command
-func generateHelpText(publicOnly bool) (s string) {
-	commands := []string{}
-	for command := range supportedCommands {
-		commands = append(commands, command)
+// userHasRole checks if a user has a specific role on a server/guild
+func userHasRole(discord *discordgo.Session, guildID, userID, roleName string) bool {
+	debugTag := "userHasRole"
+	roles, err := discord.GuildRoles(guildID)
+	member, err2 := discord.GuildMember(guildID, userID)
+	if logErrorTS(debugTag, err) || logErrorTS(debugTag, err2) {
+		return false
 	}
-	sort.Strings(commands)
-	for i := 0; i < len(commands); i++ {
-		cmd := commands[i]
-		details := supportedCommands[commands[i]]
-		if publicOnly && !details.IsPublic {
-			continue
+	roleID := ""
+	for _, role := range roles {
+		if strings.ToLower(role.Name) == roleName {
+			roleID = role.ID
 		}
-		s += fmt.Sprintf("!%s %s\n", cmd, details.Arguments)
 	}
-	s += "\n<argument> => required"
-	s += "\n[argument] => optional"
-	s += "\n{argument} => indicates exact value"
-	s += "\n\nDefaults where applicable:\n - Base ticker => ETH,\n - Quote ticker => Halo\n" +
-		" - Address(es) => first/all item(s) saved on address book, if avaiable"
-	return
-}
-
-// commandHelpText returns help text for a specific command
-func commandHelpText(commandName string) (s string) {
-	for cmd, details := range supportedCommands {
-		if cmd != strings.ToLower(commandName) {
-			continue
+	for _, mRoleID := range member.Roles {
+		if mRoleID == roleID {
+			return true
 		}
-		s += fmt.Sprintf("!%s %s: \n  - %s \n", cmd, details.Arguments, details.Description)
-		if details.Example != "" {
-			seperator := "\n           "
-			exampleF := seperator + strings.Join(strings.Split(details.Example, "OR, "), seperator)
-			s += fmt.Sprintf("  - Example: %s\n", exampleF)
-		}
-		if !details.IsPublic {
-			s += "  - Private command. Only available by PMing the bot.\n"
-		}
-		s += "\n"
 	}
-	if s == "" {
-		s = commandName + " is not a valid command"
-	}
-	return
-}
-
-// TODO: Use json config file
-// TODO: add custom "info-only" server-specific commands
-var supportedCommands = map[string]Command{
-	"help": Command{
-		Description: "Prints list of commands and supported arguments. If argument 'command' is " +
-			"provided will display detailed information about the command along with examples.",
-		Arguments: "[command-name]",
-		IsPublic:  true,
-		Example:   "!help OR, !help balance",
-	},
-	"trades": Command{
-		Description: "Recent trades from HaloDEX",
-		IsPublic:    true,
-		Arguments:   "[quote-symbol] [base-symbol] [limit]",
-		Example:     "!trades halo eth 10 OR, !trades",
-	},
-	// "orderbook": Command{
-	// 	Description: "Buy and sell brderbooks from HaloDEX",
-	// 	IsPublic:    true,
-	// 	Arguments:   "[quote-symbol] [base-symbol] [limit]",
-	// 	Example:     "!orderbook halo eth 10 OR, !orderbook",
-	// },
-	"ticker": Command{
-		Description: "Get ticker information from HaloDEX.",
-		IsPublic:    true,
-		Arguments:   "[quote-ticker] [base-ticker]",
-		Example:     "!ticker OR, !ticker vet OR, !ticker dbet eth",
-	},
-	"cmc": Command{
-		Description: "Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command.",
-		IsPublic:    true,
-		Arguments:   "<symbol>",
-		Example:     "!cmc powr, OR, !cmc power ledger, OR, !powr (shorthand for '!cmc powr')",
-	},
-	"balance": Command{
-		Description: "Check your account balance. Supported addresses/chains: HALO & ETH. " +
-			"Address keywords: 'reward pool', 'charity', 'h-eth'." +
-			" If not address supplied, the first item of user's address book will be used. " +
-			"To get balance of a specific item from address book just type the index number of the address.",
-		IsPublic:  true,
-		Arguments: "[address] [ticker]",
-		Example:   "!balance 0x1234567890abcdef OR, !balance OR, !balance 2 (for 2nd item in the address book)",
-	},
-	"tokens": Command{
-		Description: "Lists all tokens supported on HaloDEX",
-		IsPublic:    true,
-		Arguments:   "[ticker]",
-		Example:     "!tokens OR, !tokens halo",
-	},
-	"mn": Command{
-		Description: "Shows masternode collateral, reward pool balances, nodes distribution, last payout and ROI based on last payout.",
-		IsPublic:    true,
-	},
-	"halo": Command{
-		Description: "Get a digest of information about Halo.",
-		IsPublic:    true,
-		Example:     "!halo",
-	},
-	"chart": Command{
-		Description: "Get the URL of the HaloDEX third-party charts.",
-		IsPublic:    true,
-		Arguments:   "[{dark}]",
-		Example:     "!chart OR !chart dark",
-	},
-
-	// Private Commands
-	"nodes": Command{
-		Description: "Lists masternodes owned by a specific address",
-		IsPublic:    false,
-		Arguments:   "[address] [address2] [address3....]",
-		Example:     "!nodes 0x1234567890abcdef",
-	},
-	"dexbalance": Command{
-		Description: "Shows user's HaloDEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
-		IsPublic:    false,
-		Arguments:   "[address] [{0} or [ticker ticker2 ticker3...]]",
-		Example:     "!dexbalance 0x123... 0 OR, !dexbalance 0x123... ETH",
-	},
-	"orders": Command{
-		Description: "Get HaloDEX orders by user address.",
-		IsPublic:    false,
-		Arguments:   "[quote-ticker] [base-ticker] [limit] [address]",
-		Example:     "!orders halo eth 10 0x1234567890abcdef",
-	},
-	"address": Command{
-		Description: "Add, remove and get list of saved addresses.",
-		IsPublic:    false,
-		Arguments:   "[action <address1> <address2>...]",
-		Example:     "!addresses OR, !addresses add 0x1234 OR, !addresses remove 0x1234",
-	},
-	"alert": Command{
-		Description: "Enable/disable automatic alerts. Alert types: payout. Actions:on/off",
-		IsPublic:    false,
-		Arguments:   "<type> [action]",
-		Example:     "!alert payout on",
-	},
+	return false
 }

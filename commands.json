@@ -1,0 +1,98 @@
+{
+    "help": {
+        "type": "complex",
+        "description": "Prints list of commands and supported arguments. If argument 'command' is provided will display detailed information about the command along with examples.",
+        "argumentstext": "[command-name]",
+        "ispublic":      true,
+        "example":       "!help OR, !help balance"
+    },
+    "trades": {
+        "type":          "complex",
+        "description":   "Recent trades from HaloDEX",
+        "ispublic":      true,
+        "argumentstext": "[quote-symbol] [base-symbol] [limit]",
+        "example":       "!trades halo eth 10 OR, !trades"
+    },
+    "ticker": {
+        "type":          "complex",
+        "description":   "Get ticker information from HaloDEX.",
+        "ispublic":      true,
+        "argumentstext": "[quote-ticker] [base-ticker]",
+        "example":       "!ticker OR, !ticker vet OR, !ticker dbet eth"
+    },
+    "cmc": {
+        "type":          "complex",
+        "description":   "Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command.",
+        "ispublic":      true,
+        "argumentstext": "<symbol>",
+        "example":       "!cmc powr, OR, !cmc power ledger, OR, !powr (shorthand for '!cmc powr')"
+    },
+    "balance": {
+        "type": "complex",
+        "description": "Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward pool', 'charity', 'h-eth'. If not address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
+        "ispublic":      true,
+        "argumentstext": "[address] [ticker]",
+        "example":       "!balance 0x1234567890abcdef OR, !balance OR, !balance 2 (for 2nd item in the address book)"
+    },
+    "tokens": {
+        "type":          "complex",
+        "description":   "Lists all tokens supported on HaloDEX",
+        "ispublic":      true,
+        "argumentstext": "[ticker]",
+        "example":       "!tokens OR, !tokens halo"
+    },
+    "mn": {
+        "type":        "complex",
+        "description": "Shows masternode collateral, reward pool balances, nodes distribution, last payout and ROI based on last payout.",
+        "ispublic":    true
+    },
+    "halo": {
+        "type":        "complex",
+        "description": "Get a digest of information about Halo.",
+        "ispublic":    true,
+        "example":     "!halo"
+    },
+    "guildcmd": {
+        "type":          "complex",
+        "description":   "Add guild-specific custom commands",
+        "ispublic":      true,
+        "isadminonly":     true,
+        "argumentstext": "<action> <command-name> [message]",
+        "example":       "!guildcmd add sayhello Hello Discord OR, !guildcmd remove sayhello"
+    },
+    "nodes": {
+        "type":          "complex",
+        "description":   "Lists masternodes owned by a specific address",
+        "ispublic":      false,
+        "argumentstext": "[address] [address2] [address3....]",
+        "example":       "!nodes 0x1234567890abcdef"
+    },
+    "dexbalance": {
+        "type":          "complex",
+        "description":   "Shows user's HaloDEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
+        "ispublic":      false,
+        "argumentstext": "[address] [{0} or [ticker ticker2 ticker3...]]",
+        "example":       "!dexbalance 0x123... 0 OR, !dexbalance 0x123... ETH"
+    },
+    "orders": {
+        "type":          "complex",
+        "description":   "Get HaloDEX orders by user address.",
+        "ispublic":      false,
+        "argumentstext": "[quote-ticker] [base-ticker] [limit] [address]",
+        "example":       "!orders halo eth 10 0x1234567890abcdef"
+    },
+    "address": {
+        "type":          "complex",
+        "description":   "Add, remove and get list of saved addresses.",
+        "ispublic":      false,
+        "argumentstext": "[action <address1> <address2>...]",
+        "example":       "!addresses OR, !addresses add 0x1234 OR, !addresses remove 0x1234"
+    },
+    "alert": {
+        "type":          "complex",
+        "description":   "Enable/disable automatic alerts. Alert types: payout. Actions:on/off",
+        "ispublic":      false,
+        "argumentstext": "<type> [action]",
+        "example":       "!alert payout on"
+    }
+}

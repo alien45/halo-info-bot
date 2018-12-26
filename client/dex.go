@@ -503,6 +503,29 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 	return
 }
 
+// TokenPair token pair details from HaloDEX
+type TokenPair struct {
+	Pair          string `json:"pair"`
+	BaseTicker    string `json:"baseTicker"`
+	BaseAddress   string `json:"baseAddress"`
+	BaseDecimals  int    `json:"baseDecimals"`
+	BaseName      string `json:"baseName"`
+	QuoteTicker   string `json:"quoteTicker"`
+	QuoteAddress  string `json:"quoteAddress"`
+	QuoteDecimals int    `json:"quoteDecimals"`
+	QuoteName     string `json:"quoteName"`
+}
+
+// GetTokenPairs retrieves available token pairs from HaloDEX
+func (dex DEX) GetTokenPairs() (pairs []TokenPair, err error) {
+	response, err := http.Get(fmt.Sprint(dex.PublicURL, "/available"))
+	if err != nil {
+		return
+	}
+	err = json.NewDecoder(response.Body).Decode(&pairs)
+	return
+}
+
 // Balance ////
 type Balance struct {
 	Available float64 `json:"available,string"`

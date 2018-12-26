@@ -53,7 +53,7 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 		} else {
 			txt += "is off"
 		}
-		err := saveDiscordFile()
+		err := saveDataFile()
 		if commandErrorIf(err, discord, channelID, "Failed to save preferences", debugTag) {
 			return
 		}
@@ -143,9 +143,9 @@ func checkPayout(discord *discordgo.Session) {
 	// update last payout details to config file
 	mndapp.LastPayout = p
 	data.LastPayout = p
-	err = saveDiscordFile()
+	err = saveDataFile()
 	if err != nil {
-		logTS(debugTag+"] [File", fmt.Sprintf("Failed to save Payout Data to %s: %+v | [Error]: %v", discordFile, p, err))
+		logTS(debugTag+"] [File", fmt.Sprintf("Failed to save Payout Data to %s: %+v | [Error]: %v", dataFile, p, err))
 	}
 
 	alerts := map[string]string{ //data.Alerts.Payout
