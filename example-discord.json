@@ -12,6 +12,34 @@
             "t4": 0.00
         }
     },
+    "globalinfocmds": {
+        "cmdname" :{
+            "type": "text",
+            "description": "Some description to be displayed in the 'help' command",
+            "argumentstext": "",
+            "ispublic": true,
+            "message": "text to be displayed when user invokes the command. ```fix\nsupports codeblocks and other markup features```",
+            "arguments": {
+                "arg1": {
+                    "message": "some other message to be displayed when user invokes the command with the 'arg1' argument",
+                    "description": "Description for the argument"
+                }
+            }
+        }
+    },
+    "guildinfocmds": {
+        "guildid": {
+            "helloblock": {
+                "type": "text",
+                "description": "",
+                "argumentstext": "",
+                "ispublic": true,
+                "example": "",
+                "arguments": null,
+                "message": "```css\nThis is a test command\n```"
+            }
+        }
+    },
     "addressbook" : {
         "username#1234" : [
             "0x123456789abcdef1",

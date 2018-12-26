@@ -27,7 +27,11 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	cmdArgs = cmdArgs[1:]
 	numArgs := len(cmdArgs)
 	cmcTicker, err := cmc.FindTicker(cmdName)
-	command, found := commands[cmdName]
+	cmds := commands
+	if gCMDs, ok := guildCommands[message.GuildID]; ok {
+		cmds = gCMDs
+	}
+	command, found := cmds[cmdName]
 	if !found {
 		// Ignore invalid commands on public channels
 		if isPrivateMsg && err != nil && message.GuildID == "" {
@@ -64,6 +68,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	switch cmdName {
 	case "guildcmd":
 		guildCMDHandler(discord, message)
+		break
 	case "help":
 		txt := ""
 		if numArgs > 0 {
@@ -78,7 +83,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		break
 	case "balance":
 		cmdBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
-		break
 		break
 	case "ticker":
 		cmdDexTicker(discord, channelID, debugTag, cmdArgs, numArgs)
