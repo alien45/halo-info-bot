@@ -33,7 +33,8 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 	}
 	switch strings.ToLower(args[0]) {
 	case "add":
-		if numArgs < 3 {
+		_, exists := commands[args[1]]
+		if !exists && numArgs < 3 {
 			text = "Message required"
 			goto SendMessage
 		}
