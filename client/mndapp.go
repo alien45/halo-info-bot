@@ -144,6 +144,13 @@ func (m *MNDApp) GetMasternodes(ownerAddress string) (nodes []Masternode, err er
 	}{}
 
 	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s | Code: %d",
+				response.Status, response.StatusCode)
+		}
+		return
+	}
 	nodes = result.Result
 	for i := 0; i < len(nodes); i++ {
 		nodes[i].Shares /= 1e18
@@ -225,6 +232,10 @@ func (m MNDApp) GetETHCallWeiToBalance(contractAddress, data string) (balance fl
 	}{}
 	err = json.Unmarshal(bodyBytes, &result)
 	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s | Code: %d",
+				response.Status, response.StatusCode)
+		}
 		return
 	}
 	return WeiHexStrToFloat64(result.Result)

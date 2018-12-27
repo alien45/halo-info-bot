@@ -44,6 +44,12 @@ func (explorer Explorer) GetHaloSupply() (total float64, err error) {
 	}
 	result := map[string]float64{}
 	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s | Code: %d",
+				response.Status, response.StatusCode)
+		}
+	}
 	total, _ = result["total"]
 	return
 }
@@ -78,6 +84,10 @@ func (explorer Explorer) GetHaloBalance(address string) (balance float64, err er
 
 	err = json.NewDecoder(response.Body).Decode(&result)
 	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s | Code: %d",
+				response.Status, response.StatusCode)
+		}
 		return
 	}
 	return WeiHexStrToFloat64(result.Balance)

@@ -137,7 +137,7 @@ func checkPayout(discord *discordgo.Session) {
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"],
 		p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
 	// Log
-	logTS(debugTag, fmt.Sprintf("Total: %f | Minted: %f | Fees: %f | Time: %s | "+
+	logTS(debugTag, fmt.Sprintf("Total: %.0f | Minted: %.0f | Fees: %.0f | Time: %s | "+
 		"Distribution=> T1: %.0f, T2: %.0f, T3: %.0f, T4: %.0f",
 		p.Total, p.Minted, p.Fees, client.FormatTS(p.Time), t1, t2, t3, t4))
 	// update last payout details to config file

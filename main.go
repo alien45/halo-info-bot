@@ -130,7 +130,7 @@ func main() {
 			return
 		}
 
-		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers\n", numServers))
+		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers", numServers))
 
 		go discordInterval(discord, 120, true, checkPayout)
 	})
