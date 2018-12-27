@@ -57,15 +57,6 @@ func FormatNum(num float64, dp int) (s string) {
 	return
 }
 
-var numShortNames = map[float64]string{
-	1e3:  "K",  // Thousand
-	1e6:  "M",  // Million
-	1e9:  "B",  // Billion
-	1e12: "T",  // Trillion
-	1e15: "Q",  // Quadrillion
-	1e18: "Qn", // Quintillion
-}
-
 // FormatNumShort converts numbers to into readable string with initials of large number names such as B for Billion etc
 //
 // Params:
@@ -73,11 +64,27 @@ var numShortNames = map[float64]string{
 // dp  int	   : number of decimal places to be rounded to. No rounding if 0 > precision. Max 18 DP.
 func FormatNumShort(num float64, dp int) string {
 	if dp < 0 {
-		// No decimal places
 		dp = 0
 	}
-	n := math.Pow10((len(fmt.Sprint(int64(num))) / 3) * 3)
-	return fmt.Sprintf("%."+fmt.Sprint(dp)+"f %s", num/n, numShortNames[n])
+	e, n := 1, ""
+	switch {
+	case num < 1e6:
+		e, n = 3, "K"
+		break
+	case num < 1e9:
+		e, n = 6, "M"
+		break
+	case num < 1e12:
+		e, n = 9, "B"
+		break
+	case num < 1e15:
+		e, n = 12, "T"
+		break
+	case num >= 1e15:
+		e, n = 15, "Q"
+		break
+	}
+	return fmt.Sprintf("%."+fmt.Sprint(dp)+"f %s", num/math.Pow10(e), n)
 }
 
 // FormatTimeReverse formats time to string in the following format: HH:MM:SS DD-Mon
