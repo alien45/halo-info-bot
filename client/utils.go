@@ -68,6 +68,8 @@ func FormatNumShort(num float64, dp int) string {
 	}
 	e, n := 1, ""
 	switch {
+	case num < 1e3:
+		break
 	case num < 1e6:
 		e, n = 3, "K"
 		break

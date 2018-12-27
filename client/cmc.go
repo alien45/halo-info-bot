@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-var cachedCMCTickers map[string]CMCTicker
-
 // CMC acts as the CoinMarketCap.com Professional API client.
 type CMC struct {
 	BaseURL          string `json:"url"`
@@ -20,7 +18,7 @@ type CMC struct {
 	CacheExpireMins  float64 `json:"cacheexpiremins"`
 	DailyCreditLimit int64   `json:"dailycreditlimit"`
 	DailyCreditUsed  int64
-	//CachedTickers    map[string]CMCTicker // cached CMC Ticker container
+	CachedTickers    map[string]CMCTicker // cached CMC Ticker container
 }
 
 // Init instantiates a new CMC instance
@@ -37,7 +35,7 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 	tickerURL := cmc.BaseURL + "/cryptocurrency/listings/latest?start=1&limit=5000&convert=USD"
 
 	// Use cache if available and not expired
-	if cmc.DailyCreditUsed == cmc.DailyCreditLimit || (len(cachedCMCTickers) > 0 &&
+	if cmc.DailyCreditUsed == cmc.DailyCreditLimit || (len(cmc.CachedTickers) > 0 &&
 		time.Now().Sub(cmc.CacheLastUpdated).Minutes() < cmc.CacheExpireMins) {
 		log.Println("[CMC] [GetTicker] Using cached tickers")
 		return cmc.FindTicker(nameOrSymbol)
@@ -81,9 +79,9 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 	}
 
 	// Cache result
-	cachedCMCTickers = map[string]CMCTicker{}
+	cmc.CachedTickers = map[string]CMCTicker{}
 	for _, t := range tickersResult.Data {
-		cachedCMCTickers[t.Symbol] = t
+		cmc.CachedTickers[t.Symbol] = t
 	}
 	cmc.CacheLastUpdated = time.Now()
 	return cmc.FindTicker(nameOrSymbol)
@@ -97,13 +95,13 @@ func (cmc *CMC) FindTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 		return
 	}
 	// nameOrSymbol supplied
-	if t, ok := cachedCMCTickers[strings.ToUpper(nameOrSymbol)]; ok {
+	if t, ok := cmc.CachedTickers[strings.ToUpper(nameOrSymbol)]; ok {
 		// symbol supplied
 		ticker = t
 		return
 	}
 	// check if name provided
-	for _, t := range cachedCMCTickers {
+	for _, t := range cmc.CachedTickers {
 		if strings.ToLower(t.Name) == strings.ToLower(nameOrSymbol) {
 			ticker = t
 			return

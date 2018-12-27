@@ -20,13 +20,20 @@ type MNDApp struct {
 	BlockTimeMins float64 `json:"blocktimemins"`
 	// Collateral required for different tiers
 	Collateral map[string]float64 `json:"collateral"`
-	// Smart contract address to retrieve MN tier distribution
-	TierDistContract string `json:"tierdistcontract"`
 	// Smart contract address to retrieve minting pool balance and service fees
 	RewardPoolContract string `json:"rewardpoolcontract"`
-	RewardPool         Payout
-	LastPayout         Payout
-	LastAlert          time.Time
+	// Smart contract address to retrieve MN tier distribution
+	TierDistContract string `json:"tierdistcontract"`
+	RewardPool       Payout
+	LastPayout       Payout
+	LastAlert        time.Time
+	TierDistCache    map[int]DataCache
+}
+
+// DataCache cached tier distribution data
+type DataCache struct {
+	LastUpdated time.Time
+	Value       interface{}
 }
 
 // Init instantiates MNDApp  struct
@@ -73,18 +80,19 @@ func (p *Payout) Format() (s string) {
 }
 
 // CalcReward calculates reward per masternode given minted coins, service fees and tier distribution
-func (m MNDApp) CalcReward(minted, fees, t1, t2, t3, t4 float64) (t1r, t2r, t3r, t4r float64, duration string) {
-	if t1 > 0 {
-		t1r = (minted * 5 / m.BlockReward / t1) + (fees * 0.05 / t1)
+func (m MNDApp) CalcReward(minted, fees, t1s, t2s, t3s, t4s float64) (
+	t1r, t2r, t3r, t4r float64, duration string) {
+	if t1s > 0 {
+		t1r = (minted * 5 / m.BlockReward / t1s) + (fees * 0.05 / t1s)
 	}
-	if t2 > 0 {
-		t2r = (minted * 8 / m.BlockReward / t2) + (fees * 0.10 / t2)
+	if t2s > 0 {
+		t2r = (minted * 8 / m.BlockReward / t2s) + (fees * 0.10 / t2s)
 	}
-	if t3 > 0 {
-		t3r = (minted * 9 / m.BlockReward / t3) + (fees * 0.15 / t3)
+	if t3s > 0 {
+		t3r = (minted * 9 / m.BlockReward / t3s) + (fees * 0.15 / t3s)
 	}
-	if t4 > 0 {
-		t4r = (minted * 15 / m.BlockReward / t4) + (fees * 0.275 / t4)
+	if t4s > 0 {
+		t4r = (minted * 15 / m.BlockReward / t4s) + (fees * 0.275 / t4s)
 	}
 	totalMins := (int(minted / m.BlockReward * m.BlockTimeMins))
 	duration = fmt.Sprintf("%02d:%02d", int(totalMins/60), totalMins%60)
@@ -117,7 +125,7 @@ func (m Masternode) Format() string {
 		colorSign = "+"
 		break
 	case 4:
-		status = "Terminate"
+		status = "Terminated"
 		break
 	}
 	mlen := len(m.Address)
@@ -146,8 +154,7 @@ func (m *MNDApp) GetMasternodes(ownerAddress string) (nodes []Masternode, err er
 	err = json.NewDecoder(response.Body).Decode(&result)
 	if err != nil {
 		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s | Code: %d",
-				response.Status, response.StatusCode)
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
 		}
 		return
 	}
@@ -223,6 +230,9 @@ func (m MNDApp) GetETHCallWeiToBalance(contractAddress, data string) (balance fl
 
 	response, err := (&http.Client{}).Do(request)
 	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
+		}
 		return
 	}
 
@@ -263,7 +273,7 @@ func (m MNDApp) GetFormattedPoolData() (s string, err error) {
 	}
 	totalMins := (int(minted / m.BlockReward * m.BlockTimeMins))
 	duration := fmt.Sprintf("%02d:%02d", int(totalMins/60), totalMins%60)
-	s = fmt.Sprintf("-----------------Minting Pool------------------\n"+
+	s = fmt.Sprintf("------------------Reward Pool------------------\n"+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine,
 		FillOrLimit(FormatNum(minted, 0), " ", 10),
@@ -274,9 +284,17 @@ func (m MNDApp) GetFormattedPoolData() (s string, err error) {
 }
 
 // GetTierDistribution retrieves the total number of active MNs for a specific tier
-func (m MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
+func (m *MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 	if tierNo < 1 || tierNo > 4 {
 		err = errors.New("Invalid tier")
+		return
+	}
+	if m.TierDistCache == nil {
+		m.TierDistCache = map[int]DataCache{}
+	}
+	if time.Now().Sub(m.TierDistCache[tierNo].LastUpdated) < time.Minute*15 {
+		fmt.Println("Using cached tier distribution")
+		filled = m.TierDistCache[tierNo].Value.(float64)
 		return
 	}
 	filled, err = m.GetETHCallWeiToBalance(
@@ -285,6 +303,13 @@ func (m MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 	)
 	if err == nil {
 		filled *= 1e18
+		m.TierDistCache[tierNo] = DataCache{
+			LastUpdated: time.Now(),
+			Value:       filled,
+		}
+	} else if m.TierDistCache[tierNo].Value != nil {
+		// Error occured return cached data
+		filled = m.TierDistCache[tierNo].Value.(float64)
 	}
 	return
 }

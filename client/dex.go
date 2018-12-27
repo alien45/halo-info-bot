@@ -106,6 +106,9 @@ func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string) (trades []Trad
 	}
 	responseBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
+		}
 		return
 	}
 	return dex.GetTradesFromResult(responseBytes, baseAddr)
@@ -230,7 +233,7 @@ func (ticker *Ticker) Format() string {
 		FormatNumShort(ticker.TwoFourBaseVolume, 4),
 		FillOrLimit(ticker.QuoteTicker, " ", 6),
 		FormatNumShort(ticker.TwoFourQuoteVolume, 4),
-		FillOrLimit("USD", " ", 6),
+		"USD   ",
 		FormatNumShort(ticker.TwoFourVolumeUSD, 4),
 		FormatTimeReverse(ticker.LastUpdated.UTC()),
 	)
@@ -239,50 +242,60 @@ func (ticker *Ticker) Format() string {
 // GetTicker function retrieves available tickers from HaloDEX. Caching enabled.
 func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quoteTokenSupply float64) (ticker Ticker, err error) {
 	// Use cache if available and not expired
-	cachedTicker, available := dex.CachedTickers[symbolQuote+"/"+symbolBase]
+	pair := strings.ToUpper(fmt.Sprintf("%s/%s", symbolQuote, symbolBase))
+	cachedTicker, available := dex.CachedTickers[pair]
 	if available && time.Now().Sub(dex.CachedTickerLastUpdated).Minutes() < dex.CachedTickerExpireMins {
 		log.Println("[DEX] [GetTicker] Using cached tickers")
 		return cachedTicker, nil
 	}
 
-	tickerURL := fmt.Sprintf("%s/single/%s/%s", dex.PublicURL, symbolQuote, symbolBase)
-	log.Println("[DEX] [GetTicker] ticker URL: ", tickerURL)
+	// tickerURL := fmt.Sprintf("%s/single/%s/%s", dex.PublicURL, symbolQuote, symbolBase)
+	// log.Println("[DEX] [GetTicker] ticker URL: ", tickerURL)
 
 	response := &(http.Response{})
-	response, err = http.Get(tickerURL)
+	response, err = http.Get(dex.PublicURL + "/formatted")
 	if err != nil {
 		return
 	}
 	body, err := ioutil.ReadAll(response.Body)
 	// API returns empty Array if not found!!
-	if response.StatusCode != 200 || string(body) == "[]" {
-		err = fmt.Errorf("Pair %s/%s not available on HaloDEX", symbolQuote, symbolBase)
-		return
-	}
-
-	err = json.Unmarshal(body, &ticker)
 	if err != nil {
 		return
 	}
-
-	// TEMP FIX: switch 24H low and high price appropriately
-	if ticker.TwoFourAsk < ticker.TwoFourBid {
-		high := ticker.TwoFourBid
-		low := ticker.TwoFourAsk
-		ticker.TwoFourAsk = high
-		ticker.TwoFourBid = low
+	tickers := map[string]Ticker{}
+	err = json.Unmarshal(body, &tickers)
+	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
+		} else if string(body) == "[]" {
+			err = fmt.Errorf("Zero tickers returned from API")
+		}
+		return
 	}
-	ticker.LastPriceUSD = ticker.Last * baseTokenPriceUSD
-	ticker.TwoFourAskUSD = ticker.TwoFourAsk * baseTokenPriceUSD
-	ticker.TwoFourBidUSD = ticker.TwoFourBid * baseTokenPriceUSD
-	ticker.QuoteTokenSupply = quoteTokenSupply
-	ticker.TwoFourBaseVolume = ticker.TwoFourBaseVolume / 1e18
-	ticker.TwoFourQuoteVolume = ticker.TwoFourQuoteVolume / 1e18
-	ticker.TwoFourVolumeUSD = ticker.TwoFourQuoteVolume * ticker.LastPriceUSD
-	ticker.QuoteTokenMarketCap = ticker.QuoteTokenSupply * ticker.LastPriceUSD
-	ticker.LastUpdated = time.Now()
-	dex.CachedTickerLastUpdated = ticker.LastUpdated
-
+	dex.CachedTickers = tickers
+	now := time.Now()
+	for key, t := range dex.CachedTickers {
+		// TEMP FIX: switch 24H low and high price appropriately
+		if t.TwoFourAsk < t.TwoFourBid {
+			t.TwoFourAsk, t.TwoFourBid = t.TwoFourBid, t.TwoFourAsk
+		}
+		t.LastPriceUSD = t.Last * baseTokenPriceUSD
+		t.TwoFourAskUSD = t.TwoFourAsk * baseTokenPriceUSD
+		t.TwoFourBidUSD = t.TwoFourBid * baseTokenPriceUSD
+		t.QuoteTokenSupply = quoteTokenSupply
+		t.TwoFourVolumeUSD = t.TwoFourQuoteVolume * t.LastPriceUSD
+		t.QuoteTokenMarketCap = t.QuoteTokenSupply * t.LastPriceUSD
+		t.LastUpdated = now
+		dex.CachedTickers[key] = t
+		if key == pair {
+			ticker = t
+		}
+	}
+	dex.CachedTickerLastUpdated = now
+	if ticker.Pair == "" {
+		err = fmt.Errorf("Pair %s/%s not available", symbolQuote, symbolBase)
+		return
+	}
 	return
 }
 
@@ -331,8 +344,8 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 	return
 }
 
-// GetOrdersFromResult extracts orders from API response
-func (dex DEX) GetOrdersFromResult(gqlQueryStr, quoteAddr string) (orders []Order, err error) {
+// GetOrdersGQLStr extracts orders from API response
+func (dex DEX) GetOrdersGQLStr(gqlQueryStr, quoteAddr string) (orders []Order, err error) {
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
@@ -344,9 +357,11 @@ func (dex DEX) GetOrdersFromResult(gqlQueryStr, quoteAddr string) (orders []Orde
 		return
 	}
 	ordersResult := map[string]map[string][]Order{}
-
 	err = json.NewDecoder(response.Body).Decode(&ordersResult)
 	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
+		}
 		return
 	}
 
@@ -385,7 +400,7 @@ func (dex DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []O
 		  }
 		}`
 	addr := quoteAddr
-	return dex.GetOrdersFromResult(gqlQueryStr, addr)
+	return dex.GetOrdersGQLStr(gqlQueryStr, addr)
 }
 
 // GetOrderbook retrieves HaloDEX orderbook buy+sell
@@ -408,7 +423,7 @@ func (dex DEX) GetOrderbook(quoteAddr, baseAddr, limit string, buy bool) (orders
 			"quoteAddress" : "` + quoteAddr + `"
 		  }
 		}`
-	return dex.GetOrdersFromResult(gqlQueryStr, quoteAddr)
+	return dex.GetOrdersGQLStr(gqlQueryStr, quoteAddr)
 }
 
 // Token describes data of available tokens on the HaloDEX
@@ -492,6 +507,9 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 	}{}
 	err = json.NewDecoder(response.Body).Decode(&result)
 	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
+		}
 		return
 	}
 	dex.CachedTokens = map[string]Token{}
@@ -523,6 +541,9 @@ func (dex DEX) GetTokenPairs() (pairs []TokenPair, err error) {
 		return
 	}
 	err = json.NewDecoder(response.Body).Decode(&pairs)
+	if err != nil && response.StatusCode != http.StatusOK {
+		err = fmt.Errorf("API request failed! Status: %s", response.Status)
+	}
 	return
 }
 
@@ -595,6 +616,12 @@ func (dex DEX) GetBalances(userAddress string, tickers []string) (balances map[s
 		Data map[string][]Balance `json:"data"`
 	}{}
 	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
+		}
+		return
+	}
 	for t := range result.Data {
 		for k := range result.Data[t] {
 			result.Data[t][k].Available /= 1e18

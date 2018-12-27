@@ -27,18 +27,17 @@ func (explorer *Explorer) Init(baseURL, mainnetGQL string) {
 }
 
 // GetHaloSupply retrieves current total supply of Halo
-func (explorer Explorer) GetHaloSupply() (total float64, err error) {
+func (explorer Explorer) GetHaloSupply() (supply float64, err error) {
 	// Use cache if available and not expired
 	if explorer.CachedTotalSupply != 0 && time.Now().Sub(explorer.CacheLastUpdated).Minutes() < explorer.CacheExpireMins {
 		log.Println("[Explorer] [GetHaloSupply] Using cached Halo supply")
-		total = explorer.CachedTotalSupply
+		supply = explorer.CachedTotalSupply
 		return
 	}
 
 	// Update cache
-	tickerURL := explorer.BaseURL + "/coin/total"
 	log.Println("[Explorer] [GetHaloSupply] Retrieving total Halo supply ")
-	response, err := http.Get(tickerURL)
+	response, err := http.Get(explorer.BaseURL + "/coin/total")
 	if err != nil {
 		return
 	}
@@ -46,11 +45,15 @@ func (explorer Explorer) GetHaloSupply() (total float64, err error) {
 	err = json.NewDecoder(response.Body).Decode(&result)
 	if err != nil {
 		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s | Code: %d",
-				response.Status, response.StatusCode)
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
 		}
 	}
-	total, _ = result["total"]
+	supply, _ = result["total"]
+
+	// TODO: TEMP FIX until Halo team fixes explorer API
+	if supply < 40*1e7 {
+		supply *= 800
+	}
 	return
 }
 
@@ -85,8 +88,7 @@ func (explorer Explorer) GetHaloBalance(address string) (balance float64, err er
 	err = json.NewDecoder(response.Body).Decode(&result)
 	if err != nil {
 		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s | Code: %d",
-				response.Status, response.StatusCode)
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
 		}
 		return
 	}
