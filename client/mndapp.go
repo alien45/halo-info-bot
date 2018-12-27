@@ -243,8 +243,7 @@ func (m MNDApp) GetETHCallWeiToBalance(contractAddress, data string) (balance fl
 	err = json.Unmarshal(bodyBytes, &result)
 	if err != nil {
 		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s | Code: %d",
-				response.Status, response.StatusCode)
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
 		}
 		return
 	}
