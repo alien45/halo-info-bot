@@ -116,8 +116,9 @@ func commandHelpText(commands Commands, commandName string) (s string) {
 func helpHanlder(discord *discordgo.Session, channelID, guildID, debugTag string, isPrivateMsg bool, cmdArgs []string, numArgs int) {
 	txt := ""
 	isGuild := guildID != ""
+	guildHasCmd := guildCommands[guildID] != nil
 	fmt.Println("gID", guildID, txt)
-	if numArgs > 0 && !isGuild {
+	if numArgs > 0 && (!isGuild || !guildHasCmd) {
 		txt = commandHelpText(commands, cmdArgs[0])
 	} else if numArgs > 0 && isGuild {
 		txt = commandHelpText(guildCommands[guildID], cmdArgs[0])
@@ -125,7 +126,7 @@ func helpHanlder(discord *discordgo.Session, channelID, guildID, debugTag string
 		txt = generateHelpText(guildCommands[guildID], false)
 	} else if isPrivateMsg {
 		txt = generateHelpText(commands, false)
-	} else if isGuild && guildCommands[guildID] != nil {
+	} else if isGuild && guildHasCmd {
 		txt = generateHelpText(guildCommands[guildID], true)
 	} else {
 		txt = generateHelpText(commands, true)
