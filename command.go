@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 // Commands Command list with command name as key
@@ -54,10 +56,14 @@ type Argument struct {
 }
 
 // Generate text for the help command
-func generateHelpText(publicOnly bool) (s string) {
+func generateHelpText(commands Commands, publicOnly bool) (s string) {
 	cmdNames := []string{}
-	for command := range commands {
-		cmdNames = append(cmdNames, command)
+	for name := range commands {
+		if commands[name].Type == "text" && commands[name].Message == "" {
+			// Ignore empty-message commands
+			continue
+		}
+		cmdNames = append(cmdNames, name)
 	}
 	sort.Strings(cmdNames)
 	for i := 0; i < len(cmdNames); i++ {
@@ -77,10 +83,13 @@ func generateHelpText(publicOnly bool) (s string) {
 }
 
 // commandHelpText returns help text for a specific command
-func commandHelpText(commandName string) (s string) {
+func commandHelpText(commands Commands, commandName string) (s string) {
 	for cmdName, command := range commands {
 		if cmdName != strings.ToLower(commandName) {
 			continue
+		}
+		if command.Type == "text" && command.Message == "" {
+			return
 		}
 		s += fmt.Sprintf("!%s %s: \n  - %s \n", cmdName, command.ArgumentsText, command.Description)
 		if command.Example != "" {
@@ -102,4 +111,25 @@ func commandHelpText(commandName string) (s string) {
 		s = commandName + " is not a valid command"
 	}
 	return
+}
+
+func helpHanlder(discord *discordgo.Session, channelID, guildID, debugTag string, isPrivateMsg bool, cmdArgs []string, numArgs int) {
+	txt := ""
+	isGuild := guildID != ""
+	fmt.Println("gID", guildID, txt)
+	if numArgs > 0 && !isGuild {
+		txt = commandHelpText(commands, cmdArgs[0])
+	} else if numArgs > 0 && isGuild {
+		txt = commandHelpText(guildCommands[guildID], cmdArgs[0])
+	} else if isPrivateMsg && isGuild {
+		txt = generateHelpText(guildCommands[guildID], false)
+	} else if isPrivateMsg {
+		txt = generateHelpText(commands, false)
+	} else if isGuild {
+		txt = generateHelpText(guildCommands[guildID], true)
+	} else {
+		txt = generateHelpText(commands, true)
+	}
+	_, err := discordSend(discord, channelID, "css\n"+txt, true)
+	logErrorTS(debugTag, err)
 }

@@ -75,9 +75,10 @@ func addGuildCommand(guildID, name, message string) (err error) {
 		data.GuildInfoCommands[guildID] = Commands{}
 	}
 	data.GuildInfoCommands[guildID][name] = Command{
-		Type:     "text",
-		IsPublic: true,
-		Message:  strings.Replace(message, `"`, "'", 0),
+		Type:        "text",
+		IsPublic:    true,
+		Message:     strings.Replace(message, `"`, "'", 0),
+		Description: "Text-only command",
 	}
 	return saveDataFile()
 }

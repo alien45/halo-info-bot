@@ -36,9 +36,7 @@ var (
 	// guildCommands
 	guildCommands = GuildCommands{}
 	// Commands names that are not allowed in the public chats. Key: command, value: unused.
-	privateCmds     = map[string]string{}
-	helpText        string
-	helpTextPrivate string
+	privateCmds = map[string]string{}
 )
 
 // DiscordBot contains Discord bot authentication and other details
@@ -93,10 +91,6 @@ func main() {
 	// address keywords
 	addressKeywords = data.AddressKeywords
 
-	// Generate help text containing list of all commands with arguments only
-	helpText = generateHelpText(true)
-	// Generate help text containing list of private commands with arguments only
-	helpTextPrivate = generateHelpText(false)
 	// generate private commands' list
 	for cmdStr, cm := range commands {
 		if !cm.IsPublic {

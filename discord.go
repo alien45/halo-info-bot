@@ -70,16 +70,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		guildCMDHandler(discord, message)
 		break
 	case "help":
-		txt := ""
-		if numArgs > 0 {
-			txt = commandHelpText(cmdArgs[0])
-		} else if isPrivateMsg {
-			txt = helpTextPrivate
-		} else {
-			txt = helpText
-		}
-		_, err := discordSend(discord, channelID, "css\n"+txt, true)
-		logErrorTS(debugTag, err)
+		helpHanlder(discord, channelID, message.GuildID, debugTag, isPrivateMsg, cmdArgs, numArgs)
 		break
 	case "balance":
 		cmdBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
