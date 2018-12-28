@@ -68,6 +68,7 @@ type Payout struct {
 	Tiers          map[string]float64 `json:"tiers,,omitempty"` // rewards/mn for each tier
 	HostingFeeUSD  float64            `json:"hostingfeeusd"`
 	HostingFeeHalo float64            `json:"hostingfeehalo"`
+	Price          float64            `json:"price"` // Price US$/Halo
 }
 
 // Format returns payout data as strings
@@ -76,14 +77,15 @@ func (p *Payout) Format() (s string) {
 		"Time   : %s UTC (approx.)\n"+DashLine+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine+
-		"Hosting Fee/MN: $%s (%s Halo)\n",
+		"Hosting Fee/MN: $%s (%sH) @ $%s/H\n",
 		FillOrLimit(p.Time.UTC().String(), " ", 16),
 		FillOrLimit(FormatNum(p.Minted, 0), " ", 10),
 		FillOrLimit(FormatNum(p.Fees, 0), " ", 10),
 		FillOrLimit(FormatNum(p.Total, 0), " ", 10),
 		p.Duration,
 		FormatNum(p.HostingFeeUSD, 4),
-		FormatNum(p.HostingFeeHalo, 0),
+		FillOrLimit(FormatNum(p.HostingFeeHalo, 0), " ", 4),
+		FillOrLimit(p.Price, " ", 10),
 	)
 	s += fmt.Sprintf(DashLine+
 		"Tier 1     | Tier 2    | Tier 3    | Tier 4\n"+DashLine+

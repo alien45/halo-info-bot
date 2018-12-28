@@ -134,7 +134,7 @@ func checkPayout(discord *discordgo.Session) {
 	p.Tiers = map[string]float64{}
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"],
 		p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
-	p.HostingFeeHalo, p.HostingFeeUSD, _ = getHostingFee(p.Duration)
+	p.HostingFeeHalo, p.HostingFeeUSD, p.Price, _ = getHostingFee(p.Duration)
 	// Log
 	logTS(debugTag, fmt.Sprintf("Total: %.0f | Minted: %.0f | Fees: %.0f | Time: %s | "+
 		"HostingFee: %.0f Halo ($%.0f) |"+
@@ -188,7 +188,7 @@ func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minte
 	p.Time = time.Now()
 	p.Tiers = map[string]float64{}
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"], p.Duration = mndapp.CalcReward(minted, fees, t1, t2, t3, t4)
-	p.HostingFeeHalo, p.HostingFeeUSD, _ = getHostingFee(p.Duration)
+	p.HostingFeeHalo, p.HostingFeeUSD, p.Price, _ = getHostingFee(p.Duration)
 	mndapp.LastPayout = p
 	mndapp.LastAlert = p.Time
 	data.LastPayout = p
@@ -221,7 +221,7 @@ func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[
 }
 
 // GetHostingFee estimates the Halo Platform hosting fee for each node using current price from HaloDEX
-func getHostingFee(durationStr string) (feeHalo, feeUSD float64, err error) {
+func getHostingFee(durationStr string) (feeHalo, feeUSD, haloUSD float64, err error) {
 	hours := durationToNum(durationStr)
 	eth, err := cmc.GetTicker("ETH")
 	if err != nil {
@@ -233,7 +233,8 @@ func getHostingFee(durationStr string) (feeHalo, feeUSD float64, err error) {
 	}
 	feesPerHour := mndapp.HostingFeeUSD / 30 / 24
 	feeUSD = math.Ceil(hours) * feesPerHour
-	feeHalo = feeUSD / ticker.LastPriceUSD
+	haloUSD = ticker.LastPriceUSD
+	feeHalo = feeUSD / haloUSD
 	return
 }
 

@@ -125,7 +125,7 @@ func helpHanlder(discord *discordgo.Session, channelID, guildID, debugTag string
 		txt = generateHelpText(guildCommands[guildID], false)
 	} else if isPrivateMsg {
 		txt = generateHelpText(commands, false)
-	} else if isGuild {
+	} else if isGuild && guildCommands[guildID] != nil {
 		txt = generateHelpText(guildCommands[guildID], true)
 	} else {
 		txt = generateHelpText(commands, true)
