@@ -260,9 +260,6 @@ func (m MNDApp) GetETHCallWeiToBalance(contractAddress, data string) (balance fl
 
 	response, err := (&http.Client{}).Do(request)
 	if err != nil {
-		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s", response.Status)
-		}
 		return
 	}
 

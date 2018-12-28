@@ -106,10 +106,10 @@ func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string) (trades []Trad
 	}
 	responseBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s", response.Status)
-		}
 		return
+	}
+	if response.StatusCode != http.StatusOK {
+		err = fmt.Errorf("API request failed! Status: %s", response.Status)
 	}
 	return dex.GetTradesFromResult(responseBytes, baseAddr)
 }
