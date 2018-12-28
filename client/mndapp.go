@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 )
@@ -23,11 +24,22 @@ type MNDApp struct {
 	// Smart contract address to retrieve minting pool balance and service fees
 	RewardPoolContract string `json:"rewardpoolcontract"`
 	// Smart contract address to retrieve MN tier distribution
-	TierDistContract string `json:"tierdistcontract"`
-	RewardPool       Payout
-	LastPayout       Payout
-	LastAlert        time.Time
-	TierDistCache    map[int]DataCache
+	TierDistContract string           `json:"tierdistcontract"`
+	TierBlockRewards TierBlockRewards `json:"tierblockrewards"`
+	HostingFeeUSD    float64          `json:"hostingfeeusd"`
+	// Cached data
+	RewardPool    Payout
+	LastPayout    Payout
+	LastAlert     time.Time
+	TierDistCache map[int]DataCache
+}
+
+// TierBlockRewards block reward distribution per tier
+type TierBlockRewards map[string]struct {
+	// Number of minted coins for the tier from each block
+	Minted float64 `json:"minted"`
+	// Percent of fees for the tier. Ex: use 0.05 for 5%
+	FeesPercent float64 `json:"feespercent"`
 }
 
 // DataCache cached tier distribution data
@@ -48,25 +60,30 @@ func (m *MNDApp) Init(baseURL, mainnetGQL string) {
 
 // Payout stores data of a given payout
 type Payout struct {
-	Minted   float64            `json:"minted"`
-	Fees     float64            `json:"fees"`
-	Total    float64            `json:"total"`
-	Duration string             `json:"duration"` // duration string with "hh:mm" format
-	Time     time.Time          `json:"time"`
-	Tiers    map[string]float64 `json:"tiers,,omitempty"` // rewards/mn for each tier
+	Minted         float64            `json:"minted"`
+	Fees           float64            `json:"fees"`
+	Total          float64            `json:"total"`
+	Duration       string             `json:"duration"` // duration string with "hh:mm" format
+	Time           time.Time          `json:"time"`
+	Tiers          map[string]float64 `json:"tiers,,omitempty"` // rewards/mn for each tier
+	HostingFeeUSD  float64            `json:"hostingfeeusd"`
+	HostingFeeHalo float64            `json:"hostingfeehalo"`
 }
 
 // Format returns payout data as strings
 func (p *Payout) Format() (s string) {
 	s = fmt.Sprintf("\n-----------------Last Payout-------------------\n"+
+		"Time   : %s UTC (approx.)\n"+DashLine+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine+
-		"Time   : %s UTC (approx.)\n",
+		"Hosting Fee/MN: $%s (%s Halo)\n",
+		FillOrLimit(p.Time.UTC().String(), " ", 16),
 		FillOrLimit(FormatNum(p.Minted, 0), " ", 10),
 		FillOrLimit(FormatNum(p.Fees, 0), " ", 10),
 		FillOrLimit(FormatNum(p.Total, 0), " ", 10),
 		p.Duration,
-		FillOrLimit(p.Time.UTC().String(), " ", 16),
+		FormatNum(p.HostingFeeUSD, 4),
+		FormatNum(p.HostingFeeHalo, 0),
 	)
 	s += fmt.Sprintf(DashLine+
 		"Tier 1     | Tier 2    | Tier 3    | Tier 4\n"+DashLine+
@@ -80,19 +97,30 @@ func (p *Payout) Format() (s string) {
 }
 
 // CalcReward calculates reward per masternode given minted coins, service fees and tier distribution
+// Params:
+// minted float64 : number of minted coins for the payout cycle
+// fees   float64 : total accumulated fees for the cycle
+// t1s    float64 : number of active nodes in tier 1
+// t2s    float64 : number of active nodes in tier 2
+// t3s    float64 : number of active nodes in tier 3
+// t4s    float64 : number of active nodes in tier 4
 func (m MNDApp) CalcReward(minted, fees, t1s, t2s, t3s, t4s float64) (
 	t1r, t2r, t3r, t4r float64, duration string) {
 	if t1s > 0 {
-		t1r = (minted * 5 / m.BlockReward / t1s) + (fees * 0.05 / t1s)
+		r, _ := m.TierBlockRewards["t1"]
+		t1r = (minted * r.Minted / m.BlockReward / t1s) + (fees * r.FeesPercent / t1s)
 	}
 	if t2s > 0 {
-		t2r = (minted * 8 / m.BlockReward / t2s) + (fees * 0.10 / t2s)
+		r, _ := m.TierBlockRewards["t2"]
+		t2r = (minted * r.Minted / m.BlockReward / t2s) + (fees * r.FeesPercent / t2s)
 	}
 	if t3s > 0 {
-		t3r = (minted * 9 / m.BlockReward / t3s) + (fees * 0.15 / t3s)
+		r, _ := m.TierBlockRewards["t3"]
+		t3r = (minted * r.Minted / m.BlockReward / t3s) + (fees * r.FeesPercent / t3s)
 	}
 	if t4s > 0 {
-		t4r = (minted * 15 / m.BlockReward / t4s) + (fees * 0.275 / t4s)
+		r, _ := m.TierBlockRewards["t4"]
+		t4r = (minted * r.Minted / m.BlockReward / t4s) + (fees * r.FeesPercent / t4s)
 	}
 	totalMins := (int(minted / m.BlockReward * m.BlockTimeMins))
 	duration = fmt.Sprintf("%02d:%02d", int(totalMins/60), totalMins%60)
@@ -292,13 +320,14 @@ func (m *MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 		m.TierDistCache = map[int]DataCache{}
 	}
 	if time.Now().Sub(m.TierDistCache[tierNo].LastUpdated) < time.Minute*15 {
-		fmt.Println("Using cached tier distribution")
+		log.Println("[MNDApp] [GetTierDistribution] Using cached tier distribution")
 		filled = m.TierDistCache[tierNo].Value.(float64)
 		return
 	}
 	filled, err = m.GetETHCallWeiToBalance(
 		m.TierDistContract,
-		"0x993ed2a5000000000000000000000000000000000000000000000000000000000000000"+fmt.Sprint(tierNo),
+		"0x993ed2a5000000000000000000000000000000000000000000000000000000000000000"+
+			fmt.Sprint(tierNo),
 	)
 	if err == nil {
 		filled *= 1e18
@@ -340,8 +369,8 @@ func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
 
 	l := m.LastPayout
 	s += l.Format()
-	s += fmt.Sprintf("                   _______\n"+
-		"__________________/Per 500\\____________________\n"+
+	s += fmt.Sprintf("                  _______\n"+
+		"_________________/Per 400K\\____________________\n"+
 
 		"%s     | %s    | %s     | %s\n",
 		FillOrLimit(FormatNum(l.Tiers["t1"], 0), " ", 6),

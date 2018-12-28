@@ -249,16 +249,12 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 		return cachedTicker, nil
 	}
 
-	// tickerURL := fmt.Sprintf("%s/single/%s/%s", dex.PublicURL, symbolQuote, symbolBase)
-	// log.Println("[DEX] [GetTicker] ticker URL: ", tickerURL)
-
 	response := &(http.Response{})
 	response, err = http.Get(dex.PublicURL + "/formatted")
 	if err != nil {
 		return
 	}
 	body, err := ioutil.ReadAll(response.Body)
-	// API returns empty Array if not found!!
 	if err != nil {
 		return
 	}
@@ -268,6 +264,7 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 		if response.StatusCode != http.StatusOK {
 			err = fmt.Errorf("API request failed! Status: %s", response.Status)
 		} else if string(body) == "[]" {
+			// API returns empty Array if not none found!!
 			err = fmt.Errorf("Zero tickers returned from API")
 		}
 		return

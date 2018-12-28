@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +36,7 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 				// Minted and fees supplied
 				minted, _ := strconv.ParseFloat(cmdArgs[2], 64)
 				fees, _ := strconv.ParseFloat(cmdArgs[3], 64)
-				sendPayoutsManual(discord, channelID, minted, fees)
+				triggerPayoutsAlert(discord, channelID, minted, fees)
 				return
 			}
 			discordSend(discord, channelID, "Payout alert triggered.", false)
@@ -109,7 +110,7 @@ func checkPayout(discord *discordgo.Session) {
 	}
 	isPayout := (minted <= mndapp.BlockReward && minted < prevRP.Minted) && prevRP.Minted != 0 && prevRP.Minted > minPayout
 	logTS(debugTag, fmt.Sprintf(
-		"Total: %f | Minted: %f | Fees: %f | Time: %s",
+		"Total: %.0f | Minted: %.0f | Fees: %.0f | Time: %s",
 		minted+fees, minted, fees, client.FormatTS(mintedTime)))
 	if !isPayout || !validDiff {
 		return
@@ -122,11 +123,8 @@ func checkPayout(discord *discordgo.Session) {
 	p.Minted = prevRP.Minted
 	p.Fees = prevRP.Fees
 	p.Time = prevRP.Time
-
 	t1, t2, t3, t4, err := mndapp.GetAllTierDistribution()
-	if logErrorTS(debugTag, err) {
-		return
-	}
+	logErrorTS(debugTag, err)
 	if t1 < 1 || t2 < 1 || t3 < 1 || t4 < 1 {
 		// Possible uncaught error occured on external API during retrieving tier distribution. Retry.
 		t1, t2, t3, t4, err = mndapp.GetAllTierDistribution()
@@ -136,10 +134,14 @@ func checkPayout(discord *discordgo.Session) {
 	p.Tiers = map[string]float64{}
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"],
 		p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
+	p.HostingFeeHalo, p.HostingFeeUSD, _ = getHostingFee(p.Duration)
 	// Log
 	logTS(debugTag, fmt.Sprintf("Total: %.0f | Minted: %.0f | Fees: %.0f | Time: %s | "+
+		"HostingFee: %.0f Halo ($%.0f) |"+
 		"Distribution=> T1: %.0f, T2: %.0f, T3: %.0f, T4: %.0f",
-		p.Total, p.Minted, p.Fees, client.FormatTS(p.Time), t1, t2, t3, t4))
+		p.Total, p.Minted, p.Fees, client.FormatTS(p.Time),
+		p.HostingFeeHalo, p.HostingFeeUSD,
+		t1, t2, t3, t4))
 	// update last payout details to config file
 	mndapp.LastPayout = p
 	data.LastPayout = p
@@ -161,7 +163,7 @@ func checkPayout(discord *discordgo.Session) {
 	go sendPayoutAlerts(discord, p, alerts)
 	mndapp.LastAlert = time.Now().UTC()
 }
-func sendPayoutsManual(discord *discordgo.Session, userChannelID string, minted, fees float64) {
+func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minted, fees float64) {
 	debugTag := "sendPayoutsManual"
 	minimumMinted := 8 * 60 * mndapp.BlockReward / mndapp.BlockTimeMins
 	if minted == 0 || minted < minimumMinted {
@@ -186,12 +188,18 @@ func sendPayoutsManual(discord *discordgo.Session, userChannelID string, minted,
 	p.Time = time.Now()
 	p.Tiers = map[string]float64{}
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"], p.Duration = mndapp.CalcReward(minted, fees, t1, t2, t3, t4)
+	p.HostingFeeHalo, p.HostingFeeUSD, _ = getHostingFee(p.Duration)
 	mndapp.LastPayout = p
 	mndapp.LastAlert = p.Time
+	data.LastPayout = p
 	total, success, fail := sendPayoutAlerts(discord, p, data.Alerts.Payout)
 	txt := fmt.Sprintf("Payout alert sent. \nTotal channels: %d\nSuccess: %d\nFailed: %d", total, success, fail)
 	_, err = discordSend(discord, userChannelID, txt, true)
 	logErrorTS(debugTag, err)
+	err = saveDataFile()
+	if err != nil {
+		logTS(debugTag+"] [File", fmt.Sprintf("Failed to save Payout Data to %s: %+v | [Error]: %v", dataFile, p, err))
+	}
 }
 
 // sendPayoutAlerts sends out Discord payout alert to subscribed channels and users
@@ -210,4 +218,31 @@ func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[
 	fail = total - success
 	logTS("PayoutAlertSummary", fmt.Sprintf("Total channels: %d | Success: %d | Failure: %d", total, success, fail))
 	return
+}
+
+// GetHostingFee estimates the Halo Platform hosting fee for each node using current price from HaloDEX
+func getHostingFee(durationStr string) (feeHalo, feeUSD float64, err error) {
+	hours := durationToNum(durationStr)
+	eth, err := cmc.GetTicker("ETH")
+	if err != nil {
+		return
+	}
+	ticker, err := dex.GetTicker("HALO", "ETH", eth.Quote["USD"].Price, 1)
+	if err != nil {
+		return
+	}
+	feesPerHour := mndapp.HostingFeeUSD / 30 / 24
+	feeUSD = math.Ceil(hours) * feesPerHour
+	feeHalo = feeUSD / ticker.LastPriceUSD
+	return
+}
+
+// durationToNum converts HH:MM duration string to parseable duration: 12h:34m
+func durationToNum(durationStr string) float64 {
+	p := strings.Split(durationStr, ":")
+	if len(p) < 2 {
+		p = []string{"00", "00"}
+	}
+	duration, _ := time.ParseDuration(fmt.Sprintf("%sh%sm", p[0], p[1]))
+	return duration.Minutes() / 60
 }
