@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 )
@@ -28,10 +27,11 @@ type MNDApp struct {
 	TierBlockRewards TierBlockRewards `json:"tierblockrewards"`
 	HostingFeeUSD    float64          `json:"hostingfeeusd"`
 	// Cached data
-	RewardPool    Payout
-	LastPayout    Payout
-	LastAlert     time.Time
-	TierDistCache map[int]DataCache
+	RewardPool         Payout
+	LastPayout         Payout
+	LastAlert          time.Time
+	tierDistCache      map[int]float64
+	tierDistCachedTime time.Time
 }
 
 // TierBlockRewards block reward distribution per tier
@@ -40,12 +40,6 @@ type TierBlockRewards map[string]struct {
 	Minted float64 `json:"minted"`
 	// Percent of fees for the tier. Ex: use 0.05 for 5%
 	FeesPercent float64 `json:"feespercent"`
-}
-
-// DataCache cached tier distribution data
-type DataCache struct {
-	LastUpdated time.Time
-	Value       interface{}
 }
 
 // Init instantiates MNDApp  struct
@@ -288,7 +282,7 @@ func (m MNDApp) GetMintedBalance() (balance float64, err error) {
 }
 
 // GetFormattedPoolData returns reward pool data including minting and service pool balances as formatted strings
-func (m MNDApp) GetFormattedPoolData() (s string, err error) {
+func (m *MNDApp) GetFormattedPoolData() (s string, err error) {
 	minted, err := m.GetMintedBalance()
 	if err != nil {
 		return
@@ -310,17 +304,9 @@ func (m MNDApp) GetFormattedPoolData() (s string, err error) {
 }
 
 // GetTierDistribution retrieves the total number of active MNs for a specific tier
-func (m *MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
+func (m MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 	if tierNo < 1 || tierNo > 4 {
 		err = errors.New("Invalid tier")
-		return
-	}
-	if m.TierDistCache == nil {
-		m.TierDistCache = map[int]DataCache{}
-	}
-	if time.Now().Sub(m.TierDistCache[tierNo].LastUpdated) < time.Minute*15 {
-		log.Println("[MNDApp] [GetTierDistribution] Using cached tier distribution")
-		filled = m.TierDistCache[tierNo].Value.(float64)
 		return
 	}
 	filled, err = m.GetETHCallWeiToBalance(
@@ -328,39 +314,42 @@ func (m *MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 		"0x993ed2a5000000000000000000000000000000000000000000000000000000000000000"+
 			fmt.Sprint(tierNo),
 	)
-	if err == nil {
-		filled *= 1e18
-		m.TierDistCache[tierNo] = DataCache{
-			LastUpdated: time.Now(),
-			Value:       filled,
-		}
-	} else if m.TierDistCache[tierNo].Value != nil {
-		// Error occured return cached data
-		filled = m.TierDistCache[tierNo].Value.(float64)
+	if err != nil {
+		return
 	}
+	filled *= 1e18
 	return
 }
 
 // GetAllTierDistribution returns number of active masternodes in each of the 4 tiers
 func (m *MNDApp) GetAllTierDistribution() (t1, t2, t3, t4 float64, err error) {
-	t1, err = m.GetTierDistribution(1)
-	if err != nil {
-		return
+	if m.tierDistCache == nil {
+		m.tierDistCache = map[int]float64{}
 	}
-	t2, err = m.GetTierDistribution(2)
-	if err != nil {
-		return
+	expired := time.Now().Sub(m.tierDistCachedTime).Minutes() > 15
+	for i := 1; i < 5; i++ {
+		if !expired && m.tierDistCache[i] > 0 {
+			// Use cache
+			continue
+		}
+		d, erri := m.GetTierDistribution(i)
+		if erri == nil {
+			m.tierDistCache[i] = d
+			continue
+		}
+		err = erri
+		// In case of http/RPC failure, use cache if exists
+		if m.tierDistCache[i] > 0 {
+			continue
+		}
 	}
-	t3, err = m.GetTierDistribution(3)
-	if err != nil {
-		return
-	}
-	t4, err = m.GetTierDistribution(4)
-	return
+	m.tierDistCachedTime = time.Now()
+	t := m.tierDistCache
+	return t[1], t[2], t[3], t[4], err
 }
 
 // GetFormattedMNInfo returns formatted string with masternode tiers and their collateral requirement
-func (m MNDApp) GetFormattedMNInfo() (s string, err error) {
+func (m *MNDApp) GetFormattedMNInfo() (s string, err error) {
 	s, err = m.GetFormattedPoolData()
 	if err != nil {
 		return

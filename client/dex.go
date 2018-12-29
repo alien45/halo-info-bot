@@ -481,7 +481,7 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 	if len(dex.CachedTokens) > 0 &&
 		time.Now().Sub(dex.CachedTokenLastUpdated).Minutes() < dex.CachedTokenExpireMins {
 		tokens = dex.CachedTokens
-		log.Println("[DEX] [GetTokens] using cached tokens.")
+		log.Println("[DEX] [GetTokens] Using cached tokens.")
 		return
 	}
 	log.Println("[DEX] [GetTokens] updating DEX token cache")
@@ -579,8 +579,8 @@ func (dex DEX) GetBalances(userAddress string, tickers []string) (balances map[s
 			continue
 		}
 		found = true
-		variables += `,"` + ticker.Ticker + `Address": "` + ticker.HaloChainAddress + `"`
-		variableDeclarations += "$" + ticker.Ticker + "Address: String!"
+		variables += `, "` + ticker.Ticker + `Address": "` + ticker.HaloChainAddress + `"`
+		variableDeclarations += ", $" + ticker.Ticker + "Address: String!"
 		aliases += ticker.Ticker + `: balances(where: {user: $userAddress, token: $` +
 			ticker.Ticker + `Address}, orderBy: blockTimestamp_DESC, first:1) {balance available}`
 
@@ -596,7 +596,7 @@ func (dex DEX) GetBalances(userAddress string, tickers []string) (balances map[s
 		"query":"query balances(%s) { %s }",
 		"variables": { %s }
 	}`, variableDeclarations, aliases, variables)
-
+	fmt.Println(gqlQueryStr)
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
