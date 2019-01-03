@@ -44,6 +44,9 @@ func WeiHexStrToFloat64(wei string) (balance float64, err error) {
 
 // FormatNum returns number formatted with commas
 func FormatNum(num float64, dp int) (s string) {
+	if math.IsInf(num, 0) || math.IsNaN(num) {
+		num = 0
+	}
 	ar := strings.Split(fmt.Sprintf("%."+fmt.Sprint(dp)+"f", num), ".")
 	numDigits := len(ar[0])
 	s = ar[0]
@@ -51,7 +54,7 @@ func FormatNum(num float64, dp int) (s string) {
 		pos := numDigits - i*3
 		s = s[:pos] + "," + s[pos:]
 	}
-	if dp > 0 {
+	if dp > 0 && len(ar) > 1 {
 		s += "." + ar[1]
 	}
 	return
@@ -66,7 +69,7 @@ func FormatNumShort(num float64, dp int) string {
 	if dp < 0 {
 		dp = 0
 	}
-	e, n := 1, ""
+	e, n := 0, ""
 	switch {
 	case num < 1e3:
 		break
