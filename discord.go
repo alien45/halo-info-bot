@@ -66,45 +66,14 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		return
 	}
 	switch cmdName {
-	case "guildcmd":
-		guildCMDHandler(discord, message)
+	case "address":
+		cmdAddress(discord, channelID, fmt.Sprint(message.Author), debugTag, cmdArgs, numArgs)
 		break
-	case "help":
-		helpHanlder(discord, channelID, message.GuildID, debugTag, isPrivateMsg, cmdArgs, numArgs)
+	case "alert":
+		cmdAlert(discord, message.GuildID, channelID, message.Author.ID, username, debugTag, cmdArgs, numArgs)
 		break
 	case "balance":
 		cmdBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
-		break
-	case "ticker":
-		cmdDexTicker(discord, channelID, debugTag, cmdArgs, numArgs)
-		break
-	case "orders":
-		fallthrough
-	case "orderbook":
-		fallthrough
-	case "trades":
-		cmdDexTrades(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses, cmdName)
-		break
-	case "dexbalance": // Private Command
-		cmdDexBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
-		break
-	case "tokens":
-		cmdDexTokens(discord, channelID, debugTag, cmdArgs, numArgs)
-		break
-	case "nodes": // Private Command
-		cmdNodes(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
-		break
-	case "mn":
-		cmdMN(discord, channelID, debugTag, cmdArgs, numArgs)
-		break
-	case "halo":
-		cmdDexTicker(discord, channelID, debugTag, []string{}, 0)
-		txt, err := mndapp.GetFormattedPoolData()
-		if err == nil {
-			_, err = discordSend(discord, channelID, "js\n"+txt, true)
-		}
-		logErrorTS(debugTag, err)
-		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, userAddresses, 3, numAddresses, "trades")
 		break
 	case "cmc":
 		// Handle CoinMarketCap related commands
@@ -116,18 +85,42 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		_, err = discordSend(discord, channelID, "js\n"+ticker.Format(), true)
 		logErrorTS(debugTag, err)
 		break
-	case "alert":
-		if message.GuildID != "" && (username != conf.Client.DiscordBot.RootUser ||
-			userHasRole(discord, message.GuildID, message.Author.ID, guildAdminRole)) {
-			// Public channel. Only root user is allowed to send payout alert or enable alerts on public channels
-			_, err = discordSend(discord, channelID, "Sorry, you are not allowed to manage alerts on this channel.", true)
-			logErrorTS(debugTag, err)
-			return
-		}
-		cmdAlert(discord, message.GuildID, channelID, message.Author.ID, username, debugTag, cmdArgs, numArgs)
+	case "dexbalance": // Private Command
+		cmdDexBalance(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
 		break
-	case "address":
-		cmdAddress(discord, channelID, fmt.Sprint(message.Author), debugTag, cmdArgs, numArgs)
+	case "guildcmd":
+		guildCMDHandler(discord, message)
+		break
+	case "halo":
+		cmdDexTicker(discord, channelID, debugTag, []string{}, 0)
+		txt, err := mndapp.GetFormattedPoolData()
+		if err == nil {
+			_, err = discordSend(discord, channelID, "js\n"+txt, true)
+		}
+		logErrorTS(debugTag, err)
+		cmdDexTrades(discord, channelID, debugTag, []string{"halo", "eth", "5"}, userAddresses, 3, numAddresses, "trades")
+		break
+	case "help":
+		helpHanlder(discord, channelID, message.GuildID, debugTag, isPrivateMsg, cmdArgs, numArgs)
+		break
+	case "mn":
+		cmdMN(discord, channelID, debugTag, cmdArgs, numArgs)
+		break
+	case "nodes": // Private Command
+		cmdNodes(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses)
+		break
+	case "orders":
+		fallthrough
+	case "orderbook":
+		fallthrough
+	case "trades":
+		cmdDexTrades(discord, channelID, debugTag, cmdArgs, userAddresses, numArgs, numAddresses, cmdName)
+		break
+	case "ticker":
+		cmdDexTicker(discord, channelID, debugTag, cmdArgs, numArgs)
+		break
+	case "tokens":
+		cmdDexTokens(discord, channelID, debugTag, cmdArgs, numArgs)
 		break
 	}
 }

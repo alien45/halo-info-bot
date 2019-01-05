@@ -17,6 +17,8 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 	numArgs := len(args)
 	userID := message.Author.ID
 	guildID := message.GuildID
+	exists := false
+	notExistsTxt := "Guild command not found!"
 	var err error
 	if !userHasRole(discord, guildID, userID, guildAdminRole) &&
 		fmt.Sprint(message.Author) != conf.Client.DiscordBot.RootUser {
@@ -28,12 +30,18 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 		goto SendMessage
 	}
 	if numArgs < 2 {
-		text = "Custom command name required"
+		text = "Command name required"
 		goto SendMessage
 	}
+	_, exists = commands[args[1]]
 	switch strings.ToLower(args[0]) {
+	case "update":
+		if !exists {
+			text = notExistsTxt
+			goto SendMessage
+		}
+		fallthrough
 	case "add":
-		_, exists := commands[args[1]]
 		if !exists && numArgs < 3 {
 			text = "Message required"
 			goto SendMessage
@@ -50,6 +58,10 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 		err = addGuildCommand(guildID, strings.ToLower(args[1]), msg)
 		break
 	case "remove", "delete":
+		if !exists {
+			text = notExistsTxt
+			goto SendMessage
+		}
 		err = removeGuildCommand(guildID, args[1])
 		break
 	default:
@@ -68,6 +80,10 @@ SendMessage:
 }
 
 func addGuildCommand(guildID, name, message string) (err error) {
+	if strings.TrimSpace(name) == "" {
+		err = fmt.Errorf("Command name required")
+		return
+	}
 	if data.GuildInfoCommands == nil {
 		data.GuildInfoCommands = GuildCommands{}
 	}
