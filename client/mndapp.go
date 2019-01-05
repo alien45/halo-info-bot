@@ -52,6 +52,27 @@ func (m *MNDApp) Init(baseURL, mainnetGQL string) {
 	return
 }
 
+// PayoutTX Temp.
+type PayoutTX struct {
+	BlockHash        string    `json:"blockHash"`        //: "0xade90ac9ca5786bbd56139b6d10a6dc931dd14bfce55150b3ab46c75f409c29a",
+	BlockNumber      int64     `json:"blockNumber"`      //: 33320561,
+	From             string    `json:"from"`             //: "0xc31aC2C9a88F8427f1a5Ac3Ae92768De34cf2a65",
+	Gas              int64     `json:"gas"`              //: 599000000,
+	GasPrice         string    `json:"gasPrice"`         //: "0",
+	Hash             string    `json:"hash"`             //: "0x0a7afe86712e79fc1f29e86d95a4327556c848abad1b38d776c7d7682408f21d",
+	Input            string    `json:"input"`            //: "0xdf6c39fb000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000030cdb",
+	Nonce            int64     `json:"nonce"`            //: 2209,
+	To               string    `json:"to"`               //: "0xC660934eC084698E373AC844cE29cf27B104F696",
+	TransactionIndex int64     `json:"transactionIndex"` //: 0,
+	Value            string    `json:"value"`            //: "0",
+	V                string    `json:"v"`                //: "0x1c",
+	R                string    `json:"r"`                //: "0xf6c914d7a8cd0325701fd75d5b1a272ebb095e866a045c5ade133676ae9617a2",
+	S                string    `json:"s"`                //: "0x6dc7ea2ed9d0ba5729d88c88bfa94ee17498b592be2c4a2860bf0522ab972a13"
+	TS               time.Time `json:"ts"`
+	AlertSent        bool
+	AlertMsgIDs      map[string]string // channel id : message ID
+}
+
 // Payout stores data of a given payout
 type Payout struct {
 	Minted         float64            `json:"minted"`
@@ -63,6 +84,7 @@ type Payout struct {
 	HostingFeeUSD  float64            `json:"hostingfeeusd"`
 	HostingFeeHalo float64            `json:"hostingfeehalo"`
 	Price          float64            `json:"price"` // Price US$/Halo
+	PayoutTX       PayoutTX
 }
 
 // Format returns payout data as strings

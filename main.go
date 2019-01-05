@@ -16,6 +16,7 @@ const configFile = "./config.json"
 const dataFile = "./discord.json"
 const commandsFile = "./commands.json"
 const debugFile = "./debug.log"
+const payoutsFile = "./alert-receiver/payouts.json"
 const guildAdminRole = "butleradmin" // case-insensitive allowed
 const guildCMD = "guildcmd"
 

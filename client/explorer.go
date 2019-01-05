@@ -13,6 +13,7 @@ import (
 type Explorer struct {
 	BaseURL           string `json:"url"`
 	MainnetGQL        string `json:"urlgql"`
+	Homepage          string `json:"homepage"`
 	CachedTotalSupply float64
 	CacheLastUpdated  time.Time
 	CacheExpireMins   float64 `json:"cacheexpiremins"`
