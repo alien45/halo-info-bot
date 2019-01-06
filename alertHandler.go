@@ -104,7 +104,9 @@ func discordInterval(discord *discordgo.Session, seconds int, executeOnInit bool
 
 // Check if payout occured and send alert messages
 func checkPayout(discord *discordgo.Session) {
-	checkPayoutEvent(discord)
+	if !payoutTXReceived {
+		checkPayoutEvent(discord)
+	}
 	debugTag := "CheckPayout"
 	mintedTime := time.Now().UTC()
 	minted, err := mndapp.GetMintedBalance()
@@ -117,8 +119,8 @@ func checkPayout(discord *discordgo.Session) {
 	logErrorTS(debugTag+"] [GetServiceFeesBalance", err)
 	prevRP := mndapp.RewardPool
 	// Payout minimum 8 hours in minutes
-	minDuration := 8 * 60 / mndapp.BlockTimeMins
-	minPayout := mndapp.BlockReward * minDuration
+	// minDuration := 8 * 60 / mndapp.BlockTimeMins
+	// minPayout := mndapp.BlockReward * minDuration
 	// Duration in minutes by calculating minted balance
 	mintedDur := (minted / mndapp.BlockReward) * mndapp.BlockTimeMins
 	// Duration in minutes since last payout
@@ -133,15 +135,14 @@ func checkPayout(discord *discordgo.Session) {
 	} else {
 		debugTag += "] [FalsePositive"
 	}
-	isPayout := (minted <= mndapp.BlockReward && minted < prevRP.Minted) && prevRP.Minted != 0 && prevRP.Minted > minPayout
+	// isPayout := (minted <= mndapp.BlockReward && minted < prevRP.Minted) && prevRP.Minted != 0 && prevRP.Minted > minPayout
 	logTS(debugTag, fmt.Sprintf(
 		"Total: %.0f | Minted: %.0f | Fees: %.0f | Time: %s",
 		minted+fees, minted, fees, client.FormatTS(mintedTime)))
-	if !isPayout || !validDiff {
+	if !payoutTXReceived || prevRP.Minted == 0 {
 		return
 	}
-	// Previously retrieved balance is higher than current
-	// => means pool has been reset and payout occured
+	// Payout TX received by Pusher client.
 	debugTag += "] [Payout"
 	p := client.Payout{}
 	p.Total = prevRP.Minted + prevRP.Fees
@@ -167,31 +168,17 @@ func checkPayout(discord *discordgo.Session) {
 		p.Total, p.Minted, p.Fees, client.FormatTS(p.Time),
 		p.HostingFeeHalo, p.HostingFeeUSD,
 		t1, t2, t3, t4))
-
-	// update last payout details to json file
-	data.LastPayout = p
-	err = saveDataFile()
-	if err != nil {
-		logTS(debugTag+"] [File", fmt.Sprintf("Failed to save Payout Data to %s: %+v | [Error]: %v", dataFile, p, err))
-	}
-	if !payoutTXReceived || payoutTX.AlertSent {
+	if !payoutTXReceived {
+		// Updated minted and fees balance for use when payout event is triggered
 		return
 	}
-	alerts := map[string]string{ //data.Alerts.Payout
-		"452277479160414223": "test channel",
-	}
-	// If last alert was sent within 8 hours, avoid duplicate/false alerts to masses in case of false positives
-	// if time.Now().Sub(mndapp.LastAlert).Minutes() <= minDuration {
-	// 	logTS(debugTag+tag, "Avoided sending false positive alert. Sent to test channel instead")
-	// alerts = map[string]string{
-	// 	"452277479160414223": "test channel",
-	// }
-	// }
-	p.PayoutTX = payoutTX
-	sendPayoutAlerts(discord, p, alerts)
-	mndapp.LastAlert = payoutTX.TS.UTC()
+	p.Time = payoutTX.TS
+	p.BlockNumber = payoutTX.BlockNumber
+	sendPayoutAlerts(discord, p, data.Alerts.Payout)
+	mndapp.LastAlert = p.Time
 	mndapp.LastPayout = data.LastPayout
 	payoutTXReceived = false
+	logErrorTS("setPTXProcessed", setPTXProcessed())
 }
 func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minted, fees float64) {
 	debugTag := "sendPayoutsManual"
@@ -219,6 +206,10 @@ func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minte
 	p.Tiers = map[string]float64{}
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"], p.Duration = mndapp.CalcReward(minted, fees, t1, t2, t3, t4)
 	p.HostingFeeHalo, p.HostingFeeUSD, p.Price, _ = getHostingFee(p.Duration)
+	if payoutTXReceived {
+		p.BlockNumber = payoutTX.BlockNumber
+		p.Time = payoutTX.TS
+	}
 	mndapp.LastPayout = p
 	mndapp.LastAlert = p.Time
 	data.LastPayout = p
@@ -226,32 +217,50 @@ func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minte
 	txt := fmt.Sprintf("Payout alert sent. \nTotal channels: %d\nSuccess: %d\nFailed: %d", total, success, fail)
 	_, err = discordSend(discord, userChannelID, txt, true)
 	logErrorTS(debugTag, err)
-	err = saveDataFile()
-	if err != nil {
-		logTS(debugTag+"] [File", fmt.Sprintf("Failed to save Payout Data to %s: %+v | [Error]: %v", dataFile, p, err))
-	}
+	payoutTXReceived = false
+	logErrorTS("setPTXProcessed", setPTXProcessed())
 }
 
 // sendPayoutAlerts sends out Discord payout alert to subscribed channels and users
 func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[string]string) (total, success, fail int) {
 	total = len(channels)
+	msgs := []client.Message{}
 	for channelID, name := range channels {
-		txt := "Delicious payout is served!```js\n" + p.Format()
-		if p.PayoutTX.BlockNumber > 0 {
-			txt += fmt.Sprintf("Block: %s/block/%d", explorer.Homepage, p.PayoutTX.BlockNumber)
+		msg := client.Message{ChannelID: channelID}
+		txt := "Delicious payout is served!```js\n" + p.Format() + "```"
+		if p.BlockNumber > 0 {
+			txt += fmt.Sprintf("Block: %s/block/%d\n", explorer.Homepage, p.BlockNumber)
 		}
-		txt += "``````fix\nDisclaimer: Actual amount received may vary from " +
+		txt += "```fix\nDisclaimer: Actual amount received may vary from " +
 			"the amounts displayed due to the tier distribution returned by " +
 			"API includes ineligible node statuses.```"
-		_, err := discordSend(discord, channelID, txt, false)
+		dmsg, err := discordSend(discord, channelID, txt, false)
 		if err != nil {
 			logTS("PayoutAlert", fmt.Sprintf("Payout Alert Failed! Channel ID: %s, Name: %s", channelID, name))
-			continue
+			msg.Error = err.Error()
+		} else {
+			success++
+			msg.Sent = true
+			msg.ID = dmsg.ID
 		}
-		success++
+		msgs = append(msgs, msg)
 	}
 	fail = total - success
 	logTS("PayoutAlertSummary", fmt.Sprintf("Total channels: %d | Success: %d | Failure: %d", total, success, fail))
+
+	// update last payout details to json file
+	p.AlertData.Messages = msgs
+	p.AlertData.Total = total
+	p.AlertData.SuccessCount = success
+	p.AlertData.FailCount = fail
+	data.LastPayout = p
+	err := saveDataFile()
+	if err != nil {
+		logTS("FileSaveError", fmt.Sprintf("Failed to save Payout Data to %s: %+v | [Error]: %v", dataFile, p, err))
+	}
+
+	// save to payouts log
+	addPayoutLog(p)
 	return
 }
 
@@ -285,21 +294,58 @@ func durationToNum(durationStr string) float64 {
 
 func checkPayoutEvent(discord *discordgo.Session) bool {
 	debugTag := "checkPayoutEvent"
-	str, err := client.ReadFile(payoutsFile)
-	if err != nil {
-		logErrorTS(debugTag, err)
+	payoutsTX, err := getPayoutTXs()
+	if logErrorTS(debugTag+"] [FileReadError", err) {
 		return false
 	}
-	payoutsTX := []client.PayoutTX{}
-	err = json.Unmarshal([]byte(str), &payoutsTX)
 	l := len(payoutsTX)
-	if l == 0 || payoutsTX[l-1].AlertSent {
+	if l == 0 || payoutsTX[l-1].Processed {
+		// Skip if no data or processing/already processed the last payout alert
 		return false
 	}
 	ptx := payoutsTX[l-1]
 	logTS(debugTag+"] [PayoutReceived", fmt.Sprintf("Block: %d, Time: %v", ptx.BlockNumber, ptx.TS))
 	payoutTXReceived = true
 	payoutTX = ptx
-	discordSend(discord, "452277479160414223", fmt.Sprintf("Payout TX: %+v", ptx), true)
+
+	if conf.DebugChannelID != "" {
+		discordSend(discord, conf.DebugChannelID, fmt.Sprintf("Payout TX: %+v", ptx), true)
+	}
 	return true
+}
+
+func getPayoutTXs() (payoutsTX []client.PayoutTX, err error) {
+	str, err := client.ReadFile(payoutsTXFile)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal([]byte(str), &payoutsTX)
+	return
+}
+
+func setPTXProcessed() (err error) {
+	payoutsTX, err := getPayoutTXs()
+	if err != nil {
+		return
+	}
+	payoutsTX[len(payoutsTX)-1].Processed = true
+	client.SaveJSONFileLarge(payoutsTXFile, payoutsTX)
+	return
+}
+
+func addPayoutLog(p client.Payout) (err error) {
+	str, err := client.ReadFile(payoutLogFile)
+	if err != nil {
+		return
+	}
+	if str == "" {
+		str = "[]"
+	}
+	payouts := []client.Payout{}
+	err = json.Unmarshal([]byte(str), &payouts)
+	if err != nil {
+		return
+	}
+	payouts = append(payouts, p)
+	return client.SaveJSONFileLarge(payoutLogFile, payouts)
 }

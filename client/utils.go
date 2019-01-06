@@ -139,13 +139,13 @@ func SaveJSONFile(filename string, data interface{}) (err error) {
 	return ioutil.WriteFile(filename, dataBytes, 0644)
 }
 
-// SaveJSONFileLarge writes supplied data as foratted JSON
+// SaveJSONFileLarge writes supplied data as foratted JSON. Create file if not exists.
 func SaveJSONFileLarge(filename string, data interface{}) (err error) {
 	dataBytes, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return
 	}
-	file, err := os.Create(filename)
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Println("create failed")
 		return
@@ -153,4 +153,24 @@ func SaveJSONFileLarge(filename string, data interface{}) (err error) {
 	defer file.Close()
 	_, err = file.Write(dataBytes)
 	return
+}
+
+// AppendToFile append text to file
+func AppendToFile(filepath, text string) (err error) {
+	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, err = file.WriteString(text)
+	return
+}
+
+// AppendJSONToFile appends data as a single line json to file
+func AppendJSONToFile(filepath, prefix string, data interface{}) (err error) {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	return AppendToFile(filepath, prefix+string(b)+"\n")
 }

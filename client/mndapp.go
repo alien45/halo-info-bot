@@ -12,8 +12,11 @@ import (
 
 // MNDApp struct handles API calls to Halo Masternodes DApp
 type MNDApp struct {
-	BaseURL    string `json:"url"`
-	MainnetGQL string `json:"urlgql"`
+	CheckPayout     bool   `json:"checkpayout"`
+	IntervalSeconds int    `json:"intervalseconds"`
+	AutomateAlert   bool   `json:"automatealert"`
+	BaseURL         string `json:"url"`
+	MainnetGQL      string `json:"urlgql"`
 	// Number of coins minted on each minting cycle
 	BlockReward float64 `json:"blockreward"`
 	// Number of minutes of each minting cycle. NOT the actual block time of the chain.
@@ -69,8 +72,7 @@ type PayoutTX struct {
 	R                string    `json:"r"`                //: "0xf6c914d7a8cd0325701fd75d5b1a272ebb095e866a045c5ade133676ae9617a2",
 	S                string    `json:"s"`                //: "0x6dc7ea2ed9d0ba5729d88c88bfa94ee17498b592be2c4a2860bf0522ab972a13"
 	TS               time.Time `json:"ts"`
-	AlertSent        bool
-	AlertMsgIDs      map[string]string // channel id : message ID
+	Processed        bool      `json:"processed"`
 }
 
 // Payout stores data of a given payout
@@ -84,12 +86,30 @@ type Payout struct {
 	HostingFeeUSD  float64            `json:"hostingfeeusd"`
 	HostingFeeHalo float64            `json:"hostingfeehalo"`
 	Price          float64            `json:"price"` // Price US$/Halo
-	PayoutTX       PayoutTX
+	BlockNumber    int64              `json:"blocknumber"`
+	AlertData      AlertData          `json:"alertdata"`
+}
+
+// AlertData payout alert data
+type AlertData struct {
+	AlertSent    bool      `json:"alertsent"`
+	Total        int       `json:"total"`
+	SuccessCount int       `json:"successcount"`
+	FailCount    int       `json:"failcount"`
+	Messages     []Message `json:"messages"` // channel id : message ID
+}
+
+// Message alert message information
+type Message struct {
+	ID        string `json:"id"`
+	ChannelID string `json:"channelid"`
+	Sent      bool   `json:"sent"`
+	Error     string `json:"error"`
 }
 
 // Format returns payout data as strings
 func (p *Payout) Format() (s string) {
-	s = fmt.Sprintf("\n-----------------Last Payout-------------------\n"+
+	s = fmt.Sprintf("\n------------------- Payout -------------------\n"+
 		"Time   : %s UTC (approx.)\n"+DashLine+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine+
@@ -115,6 +135,7 @@ func (p *Payout) Format() (s string) {
 }
 
 // CalcReward calculates reward per masternode given minted coins, service fees and tier distribution
+//
 // Params:
 // minted float64 : number of minted coins for the payout cycle
 // fees   float64 : total accumulated fees for the cycle

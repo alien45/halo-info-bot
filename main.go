@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	client "github.com/alien45/halo-info-bot/client"
 	"github.com/bwmarrin/discordgo"
@@ -16,14 +17,16 @@ const configFile = "./config.json"
 const dataFile = "./discord.json"
 const commandsFile = "./commands.json"
 const debugFile = "./debug.log"
-const payoutsFile = "./alert-receiver/payouts.json"
+const payoutsTXFile = "./alert-receiver/payouts.json"
+const payoutLogFile = "./payout-log.json"
 const guildAdminRole = "butleradmin" // case-insensitive allowed
 const guildCMD = "guildcmd"
 
 var (
-	botID string
-	conf  Config
-	data  DiscordData
+	botID          string
+	discordSession *discordgo.Session
+	conf           Config
+	data           DiscordData
 	// API clients
 	cmc       client.CMC
 	dex       client.DEX
@@ -49,7 +52,8 @@ type DiscordBot struct {
 
 // Config configurations including API clients
 type Config struct {
-	Client struct {
+	DebugChannelID string `json:"debugchannelid"`
+	Client         struct {
 		DiscordBot DiscordBot       `json:"discordbot"`
 		CMC        client.CMC       `json:"cmc"`
 		Etherscan  client.Etherscan `json:"etherscan"`
@@ -119,15 +123,17 @@ func main() {
 		go commandHandler(discord, message, conf.Client.DiscordBot.Prefix)
 	})
 	discord.AddHandler(func(discord *discordgo.Session, ready *discordgo.Ready) {
+		discordSession = discord
 		numServers := len(discord.State.Guilds)
+		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers", numServers))
+		if mndapp.CheckPayout {
+			go discordInterval(discord, mndapp.IntervalSeconds, true, checkPayout)
+		}
+
 		err = discord.UpdateStatus(1, fmt.Sprintf("Halo Bulter on %d servers", numServers))
 		if logErrorTS("Discord] [Error", err) {
 			return
 		}
-
-		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers", numServers))
-
-		go discordInterval(discord, 120, true, checkPayout)
 	})
 
 	err = discord.Open()
@@ -154,6 +160,10 @@ func logErrorTS(debugTag string, err error) (hasError bool) {
 		return
 	}
 	logTS(debugTag, "[Error] => "+err.Error())
+	if conf.DebugChannelID != "" {
+		discordSend(discordSession, conf.DebugChannelID,
+			fmt.Sprintf("%s [%s] Error: %s", time.Now().UTC(), debugTag, err.Error()), true)
+	}
 	return true
 }
 

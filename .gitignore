@@ -19,5 +19,7 @@ watch.sh
 *.log
 config.json
 discord.json
+payout-log.json
 cmc.json
 data/
+alert-receiver/
