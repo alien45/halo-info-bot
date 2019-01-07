@@ -411,10 +411,10 @@ func (m *MNDApp) GetFormattedMNInfo() (s string, err error) {
 	)
 	lastRMins := l.Minted / m.BlockReward * m.BlockTimeMins
 
-	t1HourlyH := (l.Tiers["t1"] / lastRMins * 60) / m.Collateral["t1"] * 100
-	t2HourlyH := (l.Tiers["t2"] / lastRMins * 60) / m.Collateral["t2"] * 100
-	t3HourlyH := (l.Tiers["t3"] / lastRMins * 60) / m.Collateral["t3"] * 100
-	t4HourlyH := (l.Tiers["t4"] / lastRMins * 60) / m.Collateral["t4"] * 100
+	t1HourlyH := l.Tiers["t1"] / lastRMins * 60
+	t2HourlyH := l.Tiers["t2"] / lastRMins * 60
+	t3HourlyH := l.Tiers["t3"] / lastRMins * 60
+	t4HourlyH := l.Tiers["t4"] / lastRMins * 60
 	s += fmt.Sprintf("                  _________\n"+
 		"_________________/ Halo/hr \\___________________\n"+
 		"%s     | %s    | %s     | %s\n",
