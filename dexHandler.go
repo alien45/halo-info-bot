@@ -158,17 +158,20 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 	baseAddr := tokenAddresses["ETH"].HaloChainAddress
 	limit := "10"
 
-	if numArgs > 1 {
+	if numArgs > 0 {
 		// Token symbol supplied
-		quoteTicker, quoteOk := tokenAddresses[strings.ToUpper(cmdArgs[0])]
-		baseTicker, baseOk := tokenAddresses[strings.ToUpper(cmdArgs[1])]
-		if !quoteOk || !baseOk {
-			_, err := discordSend(discord, channelID, fmt.Sprint("Invalid pair supplied: ", strings.Join(cmdArgs, "/")), true)
-			logErrorTS(debugTag, err)
-			return
-		}
+		quoteTicker, _ := tokenAddresses[strings.ToUpper(cmdArgs[0])]
 		quoteAddr = quoteTicker.HaloChainAddress
+	}
+
+	if numArgs > 1 {
+		baseTicker, _ := tokenAddresses[strings.ToUpper(cmdArgs[1])]
 		baseAddr = baseTicker.HaloChainAddress
+	}
+	if quoteAddr == "" || baseAddr == "" {
+		_, err := discordSend(discord, channelID, fmt.Sprint("Invalid pair supplied: ", strings.Join(cmdArgs, "/")), true)
+		logErrorTS(debugTag, err)
+		return
 	}
 	if numArgs > 2 {
 		// if limit argument is set

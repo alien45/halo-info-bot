@@ -4,22 +4,22 @@
         "type":          "complex",
         "description":   "Add, remove and get list of saved addresses.",
         "ispublic":      false,
-        "argumentstext": "[action <address1> <address2>...]",
-        "example":       "!addresses OR, !addresses add 0x1234 OR, !addresses remove 0x1234"
+        "argumentstext": "[action] [address1] [address2...]",
+        "example":       "!address OR, !address add 0x1234 OR, !address remove 0x1234"
     },
     "alert": {
         "type":          "complex",
-        "description":   "Enable/disable automatic alerts. Alert types: payout. Actions:on/off",
+        "description":   "Enable/disable automatic alerts. Alert types: payout. Actions:on, off, status, send. Only root user can use 'send' to trigger payout alert manually.",
         "ispublic":      true,
         "argumentstext": "<type> [action]",
-        "example":       "!alert payout on"
+        "example":       "!alert payout on OR, !alert payout status"
     },
     "balance": {
         "type": "complex",
-        "description": "Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward pool', 'charity', 'h-eth'. If not address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
+        "description": "Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward-pool', 'charity', 'h-eth', 'dex-halo'. If no address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
         "ispublic":      true,
-        "argumentstext": "[address] [ticker]",
-        "example":       "!balance 0x1234567890abcdef OR, !balance OR, !balance 2 (for 2nd item in the address book)"
+        "argumentstext": "<address> [ticker]",
+        "example":       "!balance 0x1234567890abcdef OR, !balance dex-halo OR, !balance OR, !balance 2 (for 2nd item in the address book)"
     },
     "cmc": {
         "type":          "complex",
@@ -32,12 +32,12 @@
         "type":          "complex",
         "description":   "Shows user's HaloDEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
         "ispublic":      false,
-        "argumentstext": "[address] [{0} or [ticker ticker2 ticker3...]]",
-        "example":       "!dexbalance 0x123... 0 OR, !dexbalance 0x123... ETH"
+        "argumentstext": "<address> [ticker1] [ticker2...]",
+        "example":       "!dexbalance 0x123... OR, !dexbalance 0x123... ETH"
     },
     "guildcmd": {
         "type":          "complex",
-        "description":   "Add guild-specific custom commands. Supported actions: add, remove, update",
+        "description":   "Add guild-specific custom commands. Supported actions: add, remove, update.\nAdding a command name same as built-in commands will override it. To remove an existing command from the guild add the intended command with empty message. Example: !guildcmd add balance.\nTo restore deleted built-in command: !guildcmd remove balance",
         "ispublic":      true,
         "isadminonly":     true,
         "argumentstext": "<action> <command-name> [message]",
@@ -45,9 +45,8 @@
     },
     "halo": {
         "type":        "complex",
-        "description": "Get a digest of information about Halo.",
-        "ispublic":    true,
-        "example":     "!halo"
+        "description": "Get a digest of information about Halo including ticker info from DEX, reward pool and recent trades.",
+        "ispublic":    true
     },
     "help": {
         "type": "complex",
@@ -63,24 +62,24 @@
     },
     "nodes": {
         "type":          "complex",
-        "description":   "Lists masternodes owned by a specific address",
+        "description":   "Lists masternodes owned by a specific address. If no address supplied, will use user's first address book item when available.",
         "ispublic":      false,
-        "argumentstext": "[address] [address2] [address3....]",
-        "example":       "!nodes 0x1234567890abcdef"
+        "argumentstext": "<address> [address2] [address3....]",
+        "example":       "!nodes 0x1234 OR, !nodes OR, !nodes 0x123 0x324 0x234"
     },
     "orders": {
         "type":          "complex",
-        "description":   "Get HaloDEX orders by user address.",
+        "description":   "Get HaloDEX orders by user address. If no address supplied, will use user's first address book item when available.",
         "ispublic":      false,
         "argumentstext": "[quote-ticker] [base-ticker] [limit] [address]",
-        "example":       "!orders halo eth 10 0x1234567890abcdef"
+        "example":       "!orders halo eth 10 0x1234 OR, !orders OR, !orders vet eth"
     },
     "trades": {
         "type":          "complex",
         "description":   "Recent trades from HaloDEX",
         "ispublic":      true,
         "argumentstext": "[quote-symbol] [base-symbol] [limit]",
-        "example":       "!trades halo eth 10 OR, !trades"
+        "example":       "!trades halo eth 10 OR, !trades eth halo OR, !trades"
     },
     "ticker": {
         "type":          "complex",

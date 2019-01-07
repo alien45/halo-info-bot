@@ -6,18 +6,18 @@
             "rootuser" : ""
         },
         "cmc" : {
-            "url": "https://pro-api.coinmarketcap.com/v1",
+            "url": "",
             "apikey": "",
             "cacheexpiremins": 10,
-            "dailycreditlimit": 33,
-            "cachefilepath": ""
+            "dailycreditlimit": 333,
+            "cacheonstart": false
         },
         "etherscan": {
-            "url": "https://api.etherscan.io/api",
+            "url": "",
             "apikey" : ""
         },
         "halodex" :{
-            "url": "https://public.halodex.io",
+            "url": "",
             "urlgql": "",
             "tokenexpiremins": 480,
             "tickerexpiremins": 3
@@ -25,19 +25,30 @@
         "explorer": {
             "url": "",
             "urlgql": "",
+            "homepage": "",
             "cacheexpiremins": 3
         },
         "mndapp": {
+            "automatealert": true,
+            "checkpayout": true,
+            "intervalseconds" : 120,
             "url": "",
             "urlgql": "",
-            "blockreward" : 38,
+            "blockreward" : 30400,
             "blocktimemins": 4,
-            "collateral": {
-                "t1": 500,
-                "t2": 1000,
-                "t3": 2500,
-                "t4": 7500
-            }
+            "collateral": { "t1": 400000, "t2": 800000, "t3": 2000000, "t4": 6000000},
+            "rewardpoolcontract": "",
+            "tierdistcontract": "",
+            "tierblockrewards" : { 
+                "t1" : { "minted": 4000, "feespercent": 0.05 },
+                "t2" : { "minted": 6400, "feespercent": 0.1 },
+                "t3" : { "minted": 7200, "feespercent": 0.15 },
+                "t4" : { "minted": 12000, "feespercent": 0.275 },
+                "archnode" : { "minted": 800, "feespercent": 0.425 }
+            },
+            "tiernodelimit": { "t1": 5000, "t2": 4000, "t3": 1000, "t4": 500, "archnode": 1},
+            "hostingfeeusd": 19.99
         }
-    }
+    },
+    "debugchannelid": ""
 }

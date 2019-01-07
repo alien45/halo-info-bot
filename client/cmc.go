@@ -19,6 +19,7 @@ type CMC struct {
 	DailyCreditLimit int64   `json:"dailycreditlimit"`
 	DailyCreditUsed  int64
 	CachedTickers    map[string]CMCTicker // cached CMC Ticker container
+	CacheOnStart     bool                 `json:"cacheonstart"`
 }
 
 // Init instantiates a new CMC instance

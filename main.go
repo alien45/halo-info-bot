@@ -104,8 +104,10 @@ func main() {
 	}
 
 	cmc = conf.Client.CMC
-	// Force cache CMC tickers
-	cmc.GetTicker("eth")
+	if cmc.CacheOnStart {
+		// Force cache CMC tickers
+		cmc.GetTicker("eth")
+	}
 	dex = conf.Client.DEX
 	etherscan = conf.Client.Etherscan
 	explorer = conf.Client.Explorer

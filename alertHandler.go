@@ -229,7 +229,7 @@ func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[
 		msg := client.Message{ChannelID: channelID}
 		txt := "Delicious payout is served!```js\n" + p.Format() + "```"
 		if p.BlockNumber > 0 {
-			txt += fmt.Sprintf("Block: %s/block/%d\n", explorer.Homepage, p.BlockNumber)
+			txt += fmt.Sprintf("%s/block/%d\n", explorer.Homepage, p.BlockNumber)
 		}
 		txt += "```fix\nDisclaimer: Actual amount received may vary from " +
 			"the amounts displayed due to the tier distribution returned by " +

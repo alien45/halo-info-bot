@@ -10,62 +10,111 @@ Check it out here: https://discord.gg/zCXW3uj
 
 ## Supported Commands
 
-### !address [action \<address1> \<address2>...]: 
+### !address [action] [address1] [address2...]: 
   - Add, remove and get list of saved addresses. 
-  - Example: !addresses OR !addresses add 0x1234 OR !addresses remove 0x1234
+  - Example:
+    <ul>
+      <li>!addresses</li>
+      <li>!addresses add 0x1234</li>
+      <li>!addresses remove 0x1234</li>
+    </ul>
   - Private command. Only available by PMing the bot.
 
-### !alert \<type> [action]: 
-  - Enable/disable automatic alerts. Alert types: payout. Actions:on/off 
-  - Example:\
-           !alert payout on
-  - Private command. Only available by PMing the bot.
+### !alert \<type> [action]:
+  - Enable/disable automatic alerts. Alert types: payout. Actions:on, off, status, send. Only root user can use 'send' to trigger payout alert manually. 
+  - Example:
+    <ul>
+      <li>!alert payout on</li>
+      <li>!alert payout status</li>
+    </ul>
 
-### !balance [address] [ticker]: 
-  - Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward pool', 'charity', 'h-eth'. If not address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address. 
-  - Example: !balance 0x1234567890abcdef OR !balance OR, !balance 2 (for 2nd item in the address book)
+### !balance \<address> [ticker]: 
+  - Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward-pool', 'charity', 'h-eth', 'dex-halo'. If no address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address. 
+  - Example:
+    <ul>
+      <li>!balance 0x1234567890abcdef</li>
+      <li>!balance dex-halo</li>
+      <li>!balance</li>
+      <li>!balance 2 (for 2nd item in the address book)</li>
+    </ul>
 
 ### !cmc \<symbol>: 
   - Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command. 
-  - Example: !cmc powr, OR, !cmc power ledger, OR !powr (shorthand for '!cmc powr')
+  - Example:
+    <ul>
+      <li>!cmc powr, </li>
+      <li>!cmc power ledger, </li>
+      <li>!powr (shorthand for '!cmc powr')</li>
+    </ul>
 
-### !dexbalance [address] [{0} or [ticker ticker2 ticker3...]]: 
+### !dexbalance \<address> [ticker1] [ticker2...]: 
   - Shows user's HaloDEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX. 
-  - Example: !dexbalance 0x123... 0 OR, !dexbalance 0x123... ETH
+  - Example:
+    <ul>
+      <li>!dexbalance 0x123... </li>
+      <li>!dexbalance 0x123... ETH</li>
+    </ul>
   - Private command. Only available by PMing the bot.
 
 ### !halo : 
-  - Get a digest of information about Halo. 
-  - Example: !halo
+  - Get a digest of information about Halo including ticker info from DEX, reward pool and recent trades.
 
-### !help [command]: 
-  - Prints list of commands and supported arguments. If argument 'command' is provided will display detailed information about the command along with examples.
-  - Example: !help OR !help balance
+### !help [command-name]: 
+  - Prints list of commands and supported arguments. If argument 'command' is provided will display detailed information about the command along with examples. 
+  - Example:
+    <ul>
+      <li>!help </li>
+      <li>!help balance</li>
+    </ul>
 
 ### !mn : 
-  - Shows masternode reward pool, nodes distribution, last payout and ROI based on last payout. Or get masternode collateral info. 
+  - Shows masternode collateral, reward pool balances, nodes distribution, last payout and ROI based on last payout. 
 
-### !nodes [address] [address2] [address3....]: 
-  - Lists masternodes owned by specific address(es) 
-  - Example: !nodes 0x1234567890abcdef 0x1234567890abcdee 
+### !nodes \<address> [address2] [address3....]: 
+  - Lists masternodes owned by a specific address. If no address supplied, will use user's first address book item when available. 
+  - Example: 
+    <ul>
+      <li>!nodes 0x1234</li>
+      <li>!nodes</li>
+      <li>!nodes 0x123 0x324 0x234</li>
+    </ul>
   - Private command. Only available by PMing the bot.
 
 ### !orders [quote-ticker] [base-ticker] [limit] [address]: 
-  - Get HaloDEX orders by user address. 
-  - Example: !orders halo eth 10 0x1234567890abcdef
+  - Get HaloDEX orders by user address. If no address supplied, will use user's first address book item when available. 
+  - Example: 
+    <ul>
+      <li>!orders halo eth 10 0x1234567890abcdef </li>
+      <li>!orders</li>
+      <li>!orders vet eth</li>
+    </ul>
   - Private command. Only available by PMing the bot.
 
 ### !ticker [quote-ticker] [base-ticker]: 
   - Get ticker information from HaloDEX. 
-  - Example: !ticker OR !ticker vet OR, !ticker dbet eth
+  - Example:
+    <ul> 
+      <li>!ticker</li>
+      <li>!ticker vet</li>
+      <li>!ticker dbet eth</li>
+    </ul>
 
 ### !tokens [ticker]: 
   - Lists all tokens supported on HaloDEX 
-  - Example: !tokens OR, !tokens halo
+  - Example: 
+    <ul>
+      <li>!tokens </li>
+      <li>!tokens halo</li>
+    </ul>
 
 ### !trades [quote-symbol] [base-symbol] [limit]: 
   - Recent trades from HaloDEX 
-  - Example: !trades halo eth 10 OR, !trades
+  - Example:
+    <ul>
+      <li>!trades halo eth 10 </li>
+      <li>!trades eth halo</li>
+      <li>!trades</li>
+    </ul>
 
 
 \<argument> => required\

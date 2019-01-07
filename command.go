@@ -78,7 +78,7 @@ func generateHelpText(commands Commands, publicOnly bool) (s string) {
 	s += "\n[argument] => optional"
 	s += "\n{argument} => indicates exact value"
 	s += "\n\nDefaults where applicable:\n - Base ticker => ETH,\n - Quote ticker => Halo\n" +
-		" - Address(es) => first/all item(s) saved on address book, if avaiable"
+		" - Address(es) => first/all item(s) saved on address book, if available"
 	return
 }
 
