@@ -47,7 +47,7 @@ func FormatNum(num float64, dp int) (s string) {
 	if math.IsInf(num, 0) || math.IsNaN(num) {
 		num = 0
 	}
-	ar := strings.Split(fmt.Sprintf("%."+fmt.Sprint(dp)+"f", num), ".")
+	ar := strings.Split(fmt.Sprintf("%."+fmt.Sprint(dp)+"f", math.Abs(num)), ".")
 	numDigits := len(ar[0])
 	s = ar[0]
 	for i := 1; i <= int((numDigits-1)/3); i++ {
@@ -56,6 +56,9 @@ func FormatNum(num float64, dp int) (s string) {
 	}
 	if dp > 0 && len(ar) > 1 {
 		s += "." + ar[1]
+	}
+	if num < 0 {
+		s = "-" + s
 	}
 	return
 }

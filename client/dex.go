@@ -65,7 +65,7 @@ type Trade struct {
 }
 
 // FormatTrades transforms Trade attributes into formatted signle line string
-func (*DEX) FormatTrades(trades []Trade) (s string) {
+func (dex *DEX) FormatTrades(trades []Trade) (s string) {
 	if len(trades) == 0 {
 		return "No data available"
 	}
@@ -342,7 +342,7 @@ func (dex *DEX) FormatOrders(orders []Order) (s string) {
 }
 
 // GetOrdersGQLStr extracts orders from API response
-func (dex DEX) GetOrdersGQLStr(gqlQueryStr, quoteAddr string) (orders []Order, err error) {
+func (dex *DEX) GetOrdersGQLStr(gqlQueryStr, quoteAddr string) (orders []Order, err error) {
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
@@ -383,7 +383,7 @@ func (dex DEX) GetOrdersGQLStr(gqlQueryStr, quoteAddr string) (orders []Order, e
 }
 
 // GetOrders retrieves HaloDEX orders by user address
-func (dex DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []Order, err error) {
+func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []Order, err error) {
 	gqlQueryStr := `{
 		"operationName": "users",
 		"query": "query users($userAddress: String!, $baseAddress: String!, $quoteAddress: String!) ` +
@@ -401,7 +401,7 @@ func (dex DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []O
 }
 
 // GetOrderbook retrieves HaloDEX orderbook buy+sell
-func (dex DEX) GetOrderbook(quoteAddr, baseAddr, limit string, buy bool) (orders []Order, err error) {
+func (dex *DEX) GetOrderbook(quoteAddr, baseAddr, limit string, buy bool) (orders []Order, err error) {
 	//OR: [{tokenGive: $baseAddress, tokenGet: $quoteAddress}, {tokenGive: $quoteAddress, tokenGet: $baseAddress}]
 	orderBy := "amountGet_DESC"
 	if !buy {
@@ -478,10 +478,9 @@ func (dex *DEX) GetFormattedTokens(tokens map[string]Token) (s string, err error
 
 // GetTokens caches and returns HaloDEX tokens.
 func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
-	if len(dex.CachedTokens) > 0 &&
-		time.Now().Sub(dex.CachedTokenLastUpdated).Minutes() < dex.CachedTokenExpireMins {
+	cacheExpired := time.Now().Sub(dex.CachedTokenLastUpdated).Minutes() >= dex.CachedTokenExpireMins
+	if len(dex.CachedTokens) > 0 && !cacheExpired {
 		tokens = dex.CachedTokens
-		log.Println("[DEX] [GetTokens] Using cached tokens.")
 		return
 	}
 	log.Println("[DEX] [GetTokens] updating DEX token cache")
@@ -532,7 +531,7 @@ type TokenPair struct {
 }
 
 // GetTokenPairs retrieves available token pairs from HaloDEX
-func (dex DEX) GetTokenPairs() (pairs []TokenPair, err error) {
+func (dex *DEX) GetTokenPairs() (pairs []TokenPair, err error) {
 	response, err := http.Get(fmt.Sprint(dex.PublicURL, "/available"))
 	if err != nil {
 		return
@@ -551,7 +550,7 @@ type Balance struct {
 }
 
 // GetBalance returns single balance of the specified address
-func (dex DEX) GetBalance(userAddress string, tickerStr string) (balance float64, err error) {
+func (dex *DEX) GetBalance(userAddress string, tickerStr string) (balance float64, err error) {
 	balances, err := dex.GetBalances(userAddress, []string{tickerStr})
 	if err != nil {
 		return
@@ -563,7 +562,7 @@ func (dex DEX) GetBalance(userAddress string, tickerStr string) (balance float64
 }
 
 // GetBalances retrieves DEX account balances for one or more tickers by user address
-func (dex DEX) GetBalances(userAddress string, tickers []string) (balances map[string][]Balance, err error) {
+func (dex *DEX) GetBalances(userAddress string, tickers []string) (balances map[string][]Balance, err error) {
 	// update cache if necessary
 	tokens, err := dex.GetTokens()
 	if err != nil {
@@ -596,7 +595,6 @@ func (dex DEX) GetBalances(userAddress string, tickers []string) (balances map[s
 		"query":"query balances(%s) { %s }",
 		"variables": { %s }
 	}`, variableDeclarations, aliases, variables)
-	fmt.Println(gqlQueryStr)
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
