@@ -21,7 +21,7 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 			goto SendMessage
 		}
 		txt = client.DashLine
-		for i := 0; i < numArgs; i++ {
+		for i := 0; i < numAddrs; i++ {
 			txt += fmt.Sprintf("%d. %s\n%s", i+1, addresses[i], client.DashLine)
 		}
 		goto SendMessage
