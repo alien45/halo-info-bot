@@ -54,10 +54,13 @@ type DiscordBot struct {
 type Config struct {
 	DebugChannelID string `json:"debugchannelid"`
 	Client         struct {
-		DiscordBot DiscordBot       `json:"discordbot"`
+		BlockCypher struct {
+			Token string `json:"token"`
+		} `json:"blockcypher"`
 		CMC        client.CMC       `json:"cmc"`
-		Etherscan  client.Etherscan `json:"etherscan"`
 		DEX        client.DEX       `json:"halodex"`
+		DiscordBot DiscordBot       `json:"discordbot"`
+		Etherscan  client.Etherscan `json:"etherscan"`
 		Explorer   client.Explorer  `json:"explorer"`
 		MNDApp     client.MNDApp    `json:"mndapp"`
 	} `json:"apiclients"`

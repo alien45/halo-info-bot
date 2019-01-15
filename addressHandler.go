@@ -10,17 +10,18 @@ import (
 
 func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cmdArgs []string, numArgs int) {
 	addresses := data.AddressBook[user]
+	numAddrs := len(addresses)
 	addrMap := map[string]bool{}
 	action := ""
 	txt := ""
 	var err error
 	if numArgs == 0 {
-		if len(addresses) == 0 {
+		if numAddrs == 0 {
 			txt = "No addresses available!"
 			goto SendMessage
 		}
 		txt = client.DashLine
-		for i := 0; i < len(addresses); i++ {
+		for i := 0; i < numArgs; i++ {
 			txt += fmt.Sprintf("%d. %s\n%s", i+1, addresses[i], client.DashLine)
 		}
 		goto SendMessage
@@ -31,6 +32,9 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 	case "add":
 		if numArgs == 1 {
 			txt = "No address provided!"
+			goto SendMessage
+		} else if numArgs >= 100 {
+			txt = "You have reached the maximum number (100) of items in you address book."
 			goto SendMessage
 		}
 		addresses = append(addresses, strings.Split(strings.Replace(strings.Join(cmdArgs[1:], " "), "\n", " ", -1), " ")...)
@@ -54,7 +58,7 @@ func cmdAddress(discord *discordgo.Session, channelID, user, debugTag string, cm
 
 	data.AddressBook[user] = []string{}
 	for i := 0; i < len(addresses); i++ {
-		if !addrMap[addresses[i]] || strings.TrimSpace(addresses[i]) == "" || !strings.HasPrefix(addresses[i], "0x") {
+		if !addrMap[addresses[i]] || strings.TrimSpace(addresses[i]) == "" {
 			continue
 		}
 		data.AddressBook[user] = append(data.AddressBook[user], addresses[i])
