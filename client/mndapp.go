@@ -108,7 +108,7 @@ type Message struct {
 }
 
 // Format returns payout data as strings
-func (p *Payout) Format() (s string) {
+func (p Payout) Format() (s string) {
 	s = fmt.Sprintf("\n------------------- Payout -------------------\n"+
 		"Time   : %s UTC (approx.)\n"+DashLine+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
@@ -125,11 +125,74 @@ func (p *Payout) Format() (s string) {
 	)
 	s += fmt.Sprintf(DashLine+
 		"Tier 1     | Tier 2    | Tier 3    | Tier 4\n"+DashLine+
-		"%s     | %s    | %s    | %s\n"+DashLine,
-		FillOrLimit(FormatNum(p.Tiers["t1"], 0), " ", 6),
-		FillOrLimit(FormatNum(p.Tiers["t2"], 0), " ", 6),
-		FillOrLimit(FormatNum(p.Tiers["t3"], 0), " ", 6),
-		FillOrLimit(FormatNum(p.Tiers["t4"], 0), " ", 6),
+		"%s     | %s    | %s    | %s\n",
+		FillOrLimit(FormatNum(p.Tiers["t1"]-p.HostingFeeHalo, 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t2"]-p.HostingFeeHalo, 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t3"]-p.HostingFeeHalo, 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t4"]-p.HostingFeeHalo, 0), " ", 6),
+	)
+	return
+}
+
+// FormatROI returns ROI after hosting fees deducted formatted as a string
+//
+// Params:
+// @blockReward   float64             : number of coins minted per minting cycle
+// @blockTimemins float64             : minting cycle duration in minutes
+// @collateral    map[string] float64 : required collateral for each tier
+func (p Payout) FormatROI(blockReward, blockTimeMins float64, collateral map[string]float64) (s string) {
+	// deduct fees
+	t1Reward := p.Tiers["t1"] - p.HostingFeeHalo
+	t2Reward := p.Tiers["t2"] - p.HostingFeeHalo
+	t3Reward := p.Tiers["t3"] - p.HostingFeeHalo
+	t4Reward := p.Tiers["t4"] - p.HostingFeeHalo
+
+	// Reward per 400k Halo
+	s += fmt.Sprintf("                 __________\n"+
+		"________________/ Per 400K \\___________________\n"+
+
+		"%s     | %s    | %s     | %s\n",
+		FillOrLimit(FormatNum(t1Reward, 0), " ", 6),
+		FillOrLimit(FormatNum(t2Reward/2, 0), " ", 6),
+		FillOrLimit(FormatNum(t3Reward/5, 0), " ", 6),
+		FillOrLimit(FormatNum(t4Reward/15, 0), " ", 6),
+	)
+	lastRMins := p.Minted / blockReward * blockTimeMins
+	t1HourlyH := t1Reward / lastRMins * 60
+	t2HourlyH := t2Reward / lastRMins * 60
+	t3HourlyH := t3Reward / lastRMins * 60
+	t4HourlyH := t4Reward / lastRMins * 60
+	// ROI per hour
+	s += fmt.Sprintf("                  _________\n"+
+		"_________________/ Halo/hr \\___________________\n"+
+		"%s     | %s    | %s     | %s\n",
+		FillOrLimit(t1HourlyH, " ", 6),
+		FillOrLimit(t2HourlyH, " ", 6),
+		FillOrLimit(t3HourlyH, " ", 6),
+		FillOrLimit(t4HourlyH, " ", 6),
+	)
+
+	t1DailyROI := (t1Reward / lastRMins * 1440) / collateral["t1"] * 100
+	t2DailyROI := (t2Reward / lastRMins * 1440) / collateral["t2"] * 100
+	t3DailyROI := (t3Reward / lastRMins * 1440) / collateral["t3"] * 100
+	t4DailyROI := (t4Reward / lastRMins * 1440) / collateral["t4"] * 100
+	// ROI per day
+	s += fmt.Sprintf("                  _________\n"+
+		"_________________/ ROI/Day \\___________________\n"+
+		"%s%%    | %s%%   | %s%%    | %s%%\n",
+		FillOrLimit(t1DailyROI, " ", 6),
+		FillOrLimit(t2DailyROI, " ", 6),
+		FillOrLimit(t3DailyROI, " ", 6),
+		FillOrLimit(t4DailyROI, " ", 6),
+	)
+	// ROI per year
+	s += fmt.Sprintf("                  __________\n"+
+		"________________/ ROI/Year \\___________________\n"+
+		"%s%%    | %s%%   | %s%%    | %s%%\n",
+		FillOrLimit(t1DailyROI*365, " ", 6),
+		FillOrLimit(t2DailyROI*365, " ", 6),
+		FillOrLimit(t3DailyROI*365, " ", 6),
+		FillOrLimit(t4DailyROI*365, " ", 6),
 	)
 	return
 }
@@ -338,7 +401,7 @@ func (m *MNDApp) GetFormattedPoolData() (s string, err error) {
 	duration := fmt.Sprintf("%02d:%02d", int(totalMins/60), totalMins%60)
 	s = fmt.Sprintf("------------------Reward Pool------------------\n"+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
-		"Total  : %s    | Duration : %s\n"+DashLine,
+		"Total  : %s    | Duration : %s\n",
 		FillOrLimit(FormatNum(minted, 0), " ", 10),
 		FillOrLimit(FormatNum(fees, 0), " ", 10),
 		FillOrLimit(FormatNum(minted+fees, 0), " ", 10), duration,
@@ -398,59 +461,15 @@ func (m *MNDApp) GetFormattedMNInfo() (s string, err error) {
 		return
 	}
 
-	l := m.LastPayout
-	s += l.Format()
-	s += fmt.Sprintf("                 __________\n"+
-		"________________/ Per 400K \\___________________\n"+
-
-		"%s     | %s    | %s     | %s\n",
-		FillOrLimit(FormatNum(l.Tiers["t1"], 0), " ", 6),
-		FillOrLimit(FormatNum(l.Tiers["t2"]/2, 0), " ", 6),
-		FillOrLimit(FormatNum(l.Tiers["t3"]/5, 0), " ", 6),
-		FillOrLimit(FormatNum(l.Tiers["t4"]/15, 0), " ", 6),
-	)
-	lastRMins := l.Minted / m.BlockReward * m.BlockTimeMins
-
-	t1HourlyH := l.Tiers["t1"] / lastRMins * 60
-	t2HourlyH := l.Tiers["t2"] / lastRMins * 60
-	t3HourlyH := l.Tiers["t3"] / lastRMins * 60
-	t4HourlyH := l.Tiers["t4"] / lastRMins * 60
-	s += fmt.Sprintf("                  _________\n"+
-		"_________________/ Halo/hr \\___________________\n"+
-		"%s     | %s    | %s     | %s\n",
-		FillOrLimit(t1HourlyH, " ", 6),
-		FillOrLimit(t2HourlyH, " ", 6),
-		FillOrLimit(t3HourlyH, " ", 6),
-		FillOrLimit(t4HourlyH, " ", 6),
-	)
-
-	t1DailyROI := (l.Tiers["t1"] / lastRMins * 1440) / m.Collateral["t1"] * 100
-	t2DailyROI := (l.Tiers["t2"] / lastRMins * 1440) / m.Collateral["t2"] * 100
-	t3DailyROI := (l.Tiers["t3"] / lastRMins * 1440) / m.Collateral["t3"] * 100
-	t4DailyROI := (l.Tiers["t4"] / lastRMins * 1440) / m.Collateral["t4"] * 100
-	s += fmt.Sprintf("                  _________\n"+
-		"_________________/ ROI/Day \\___________________\n"+
-		"%s%%    | %s%%   | %s%%    | %s%%\n",
-		FillOrLimit(t1DailyROI, " ", 6),
-		FillOrLimit(t2DailyROI, " ", 6),
-		FillOrLimit(t3DailyROI, " ", 6),
-		FillOrLimit(t4DailyROI, " ", 6),
-	)
-	s += fmt.Sprintf("                  __________\n"+
-		"________________/ ROI/Year \\___________________\n"+
-		"%s%%    | %s%%   | %s%%    | %s%%\n",
-		FillOrLimit(t1DailyROI*365, " ", 6),
-		FillOrLimit(t2DailyROI*365, " ", 6),
-		FillOrLimit(t3DailyROI*365, " ", 6),
-		FillOrLimit(t4DailyROI*365, " ", 6),
-	)
+	s += m.LastPayout.Format()
+	s += m.LastPayout.FormatROI(m.BlockReward, m.BlockTimeMins, m.Collateral)
 
 	t1, t2, t3, t4, err := m.GetAllTierDistribution()
 	if err != nil {
 		return
 	}
 	s += fmt.Sprintf("                ______________\n"+
-		"_______________/ Filled Nodes \\________________\n"+
+		"__________/ Currently Filled Nodes \\___________\n"+
 		"%s    | %s   | %s    | %s\n",
 		FillOrLimit(FormatNum(t1, 0), " ", 7),
 		FillOrLimit(FormatNum(t2, 0), " ", 7),
