@@ -66,8 +66,10 @@ func FormatNum(num float64, dp int) (s string) {
 // FormatNumShort converts numbers to into readable string with initials of large number names such as B for Billion etc
 //
 // Params:
-// num float64 : number to convert. For integers cast to float64 first: float64(num)
-// dp  int	   : number of decimal places to be rounded to. No rounding if 0 > precision. Max 18 DP.
+//
+// @num float64 : number to convert. For integers cast to float64 first: float64(num)
+//
+// @dp  int	   : number of decimal places to be rounded to. No rounding if 0 > precision. Max 18 DP.
 func FormatNumShort(num float64, dp int) string {
 	if dp < 0 {
 		dp = 0

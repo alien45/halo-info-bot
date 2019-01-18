@@ -249,12 +249,14 @@ func (m MNDApp) CalcReward(minted, fees, t1s, t2s, t3s, t4s float64) (
 
 // Masternode describes Halo Platform masternode details
 type Masternode struct {
-	Address string  `json:"ADDRESS"`
-	Owner   string  `json:"OWNER"`
-	Tier    int64   `json:"TIER"`
-	Shares  float64 `json:"SHARES"`
-	State   int64   `json:"STATE"`
-	EpochTS uint64  `json:"TIMESTAMP,string"`
+	Address       string  `json:"ADDRESS"`
+	Owner         string  `json:"OWNER"`
+	Tier          int64   `json:"TIER"`
+	Shares        float64 `json:"SHARES"`
+	State         int64   `json:"STATE"`
+	EpochTS       uint64  `json:"TIMESTAMP,string"`
+	OwnerAddress  string
+	RewardBalance float64
 }
 
 // Format formats Masternode into string
@@ -263,7 +265,7 @@ func (m Masternode) Format() string {
 	colorSign := "-"
 	switch m.State {
 	case 1:
-		status = "Initializing"
+		status = "Initialize"
 		break
 	case 2:
 		status = "Deposited"
@@ -273,16 +275,17 @@ func (m Masternode) Format() string {
 		colorSign = "+"
 		break
 	case 4:
-		status = "Terminated"
+		status = "Terminate"
 		break
 	}
 	mlen := len(m.Address)
 	return fmt.Sprintf(
-		"%s | %s |  %d | %s | %s\n",
+		"%s|%s |%d| %s | %s\n", //| %s
 		colorSign,
-		m.Address[:6]+"..."+m.Address[mlen-4:],
+		m.Address[:5]+".."+m.Address[mlen-3:],
 		m.Tier,
 		FillOrLimit(FormatNum(m.Shares, 0), " ", 7),
+		// FillOrLimit(m.RewardBalance, " ", 5),
 		status,
 	)
 }
@@ -309,6 +312,8 @@ func (m *MNDApp) GetMasternodes(ownerAddress string) (nodes []Masternode, err er
 	nodes = result.Result
 	for i := 0; i < len(nodes); i++ {
 		nodes[i].Shares /= 1e18
+		nodes[i].OwnerAddress = ownerAddress
+		// nodes[i].RewardBalance, _ = m.GetMNRewardBalance(nodes[i].Address, ownerAddress)
 	}
 	return
 }
@@ -325,7 +330,7 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 	totalInvested := float64(0)
 	inactive := float64(0)
 
-	list = "    Address       |Tier|  Shares | Status\n" + DashLine
+	list = "    Address  |T|  Shares | Status\n" + DashLine
 	for i := 0; i < num; i++ {
 		n := nodes[i]
 		list += n.Format() + DashLine
@@ -337,19 +342,25 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 	}
 
 	summary = "================== Summary ===================\n" +
-		"Invested  | Active    | Inactive  | Nodes\n" + DashLine +
+		"Invested   | Active     | Inactive   | Nodes\n" + DashLine +
 		fmt.Sprintf("%s| %s| %s| %d\n",
-			FillOrLimit(FormatNum(totalInvested, 0), " ", 10),
-			FillOrLimit(FormatNum(totalInvested-inactive, 0), " ", 10),
-			FillOrLimit(FormatNum(inactive, 0), " ", 10),
+			FillOrLimit(FormatNumShort(totalInvested, 4), " ", 11),
+			FillOrLimit(FormatNumShort(totalInvested-inactive, 4), " ", 11),
+			FillOrLimit(FormatNumShort(inactive, 4), " ", 11),
 			num)
 	summary += "\nTier 1    | Tier 2    | Tier 3    | Tier 4\n" + DashLine +
 		fmt.Sprintf("%s| %s| %s| %s",
-			FillOrLimit(FormatNum(tierShares[1], 0), " ", 10),
-			FillOrLimit(FormatNum(tierShares[2], 0), " ", 10),
-			FillOrLimit(FormatNum(tierShares[3], 0), " ", 10),
-			FillOrLimit(FormatNum(tierShares[4], 0), " ", 10),
+			FillOrLimit(FormatNumShort(tierShares[1], 2), " ", 10),
+			FillOrLimit(FormatNumShort(tierShares[2], 2), " ", 10),
+			FillOrLimit(FormatNumShort(tierShares[3], 2), " ", 10),
+			FillOrLimit(FormatNumShort(tierShares[4], 2), " ", 10),
 		)
+	return
+}
+
+// GetMNRewardBalance retrieves masternode reward balance
+func (m MNDApp) GetMNRewardBalance(contractAddr, ownerAddr string) (balance float64, err error) {
+
 	return
 }
 

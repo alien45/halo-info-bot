@@ -132,6 +132,7 @@ func main() {
 		numServers := len(discord.State.Guilds)
 		logTS("Discord] [Ready", fmt.Sprintf("Halo Info Bot has started on %d servers", numServers))
 		if mndapp.CheckPayout {
+			fmt.Println("mndapp.IntervalSeconds", mndapp.IntervalSeconds)
 			go discordInterval(discord, mndapp.IntervalSeconds, true, checkPayout)
 		}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/alien45/halo-info-bot/client"
@@ -14,6 +15,21 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 	nodes := []client.Masternode{}
 	txt := ""
 	summary := ""
+	// action := ""
+	// if numArgs >= 0 {
+	// 	action := strings.ToLower(cmdArgs[0])
+	// 	switch action {
+	// 	case "summary", "full":
+	// 		// Remove arg so only addresses remain
+	// 		cmdArgs = cmdArgs[1:]
+	// 		break
+	// 	default:
+	// 		action = "table"
+	// 	}
+	// }
+
+	// TODO : separate summary with an argument
+	// TODO : add argument to list full addresses and balance and display using cards layout
 
 	if numArgs == 0 {
 		// No address supplied
@@ -23,11 +39,22 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 			goto SendMessage
 		}
 		addresses = userAddresses
-	}
+	} else {
 
+		for i, addr := range addresses {
+			// Check if address book index supplied
+			itemNum, err := strconv.Atoi(addr)
+			if err != nil || itemNum <= 0 || itemNum > numAddresses {
+				continue
+			}
+			// replace index with address
+			addresses[i] = userAddresses[itemNum-1]
+		}
+	}
+	// fmt.Println("Addresses: ", addresses)
 	for i := 0; i < len(addresses); i++ {
 		address := strings.ToUpper(addresses[i])
-		if _, skip := addrs[address]; skip {
+		if _, skip := addrs[address]; skip || !strings.HasPrefix(addresses[i], "0x") {
 			// Dupplicate address
 			continue
 		}
