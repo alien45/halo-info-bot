@@ -48,14 +48,48 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 		// Manually trigger payout alert. Only allowed by the root user
 		if numArgs >= 4 {
 			// Minted and fees supplied
-			minted, _ := strconv.ParseFloat(cmdArgs[2], 64)
-			fees, _ := strconv.ParseFloat(cmdArgs[3], 64)
+			minted, err := strconv.ParseFloat(cmdArgs[2], 64)
+			if commandErrorIf(err, discord, channelID, "Invalid minted total supplied", debugTag) {
+				return
+			}
+			fees, err := strconv.ParseFloat(cmdArgs[3], 64)
+			if commandErrorIf(err, discord, channelID, "Invalid service fees supplied", debugTag) {
+				return
+			}
 			triggerPayoutsAlert(discord, channelID, minted, fees)
 			return
 		}
 		discordSend(discord, channelID, "Payout alert triggered.", false)
 		total, success, fail := sendPayoutAlerts(discord, mndapp.LastPayout, data.Alerts.Payout)
 		txt = fmt.Sprintf("Payout alert sent. \nTotal channels: %d\nSuccess: %d\nFailed: %d", total, success, fail)
+		break
+	case "payout update":
+		if !isRoot {
+			return
+		}
+		if numArgs < 4 {
+			txt = "Minted total and service fees required."
+			break
+		}
+
+		minted, err := strconv.ParseFloat(cmdArgs[2], 64)
+		if commandErrorIf(err, discord, channelID, "Invalid minted total supplied", debugTag) {
+			return
+		}
+		fees, err := strconv.ParseFloat(cmdArgs[3], 64)
+		if commandErrorIf(err, discord, channelID, "Invalid service fees supplied", debugTag) {
+			return
+		}
+		data.LastPayout.Minted = minted
+		data.LastPayout.Fees = fees
+		discordSend(discord, channelID, "Payout update triggered.", false)
+		chMsgIDs := map[string]string{}
+		for _, msg := range data.LastPayout.AlertData.Messages {
+			chMsgIDs[msg.ChannelID] = msg.ID
+		}
+		total, success, fail := updatePayoutAlerts(discord, data.LastPayout, chMsgIDs)
+		txt = fmt.Sprintf("Payout alert updated. \nTotal channels: %d\nSuccess: %d\nFailed: %d", total, success, fail)
+		mndapp.LastPayout = data.LastPayout
 		break
 	case "payout on":
 		if !allowed {
@@ -242,6 +276,50 @@ func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[
 			success++
 			msg.Sent = true
 			msg.ID = dmsg.ID
+		}
+		msgs = append(msgs, msg)
+	}
+	fail = total - success
+	logTS("PayoutAlertSummary", fmt.Sprintf("Total channels: %d | Success: %d | Failure: %d", total, success, fail))
+
+	// update last payout details to json file
+	p.AlertData.Messages = msgs
+	p.AlertData.Total = total
+	p.AlertData.SuccessCount = success
+	p.AlertData.FailCount = fail
+	data.LastPayout = p
+	mndapp.LastPayout = p
+	err := saveDataFile()
+	if err != nil {
+		logTS("FileSaveError", fmt.Sprintf("Failed to save Payout Data to %s: %+v | [Error]: %v", dataFile, p, err))
+	}
+
+	// save to payouts log
+	addPayoutLog(p)
+	return
+}
+
+// updatePayoutAlerts sends out Discord payout alert to subscribed channels and users
+func updatePayoutAlerts(discord *discordgo.Session, p client.Payout, channelMsgIDs map[string]string) (total, success, fail int) {
+	total = len(channelMsgIDs)
+	msgs := []client.Message{}
+	txt := "Delicious payout is served!```js\n" + p.Format() + "```"
+	if p.BlockNumber > 0 {
+		txt += fmt.Sprintf("%s/block/%d\n", explorer.Homepage, p.BlockNumber)
+	}
+	txt += "```fix\nDisclaimer: Actual amount received may vary from " +
+		"the amounts displayed due to the tier distribution returned by " +
+		"API includes ineligible node statuses.```"
+	for channelID, msgID := range channelMsgIDs {
+		msg := client.Message{ChannelID: channelID}
+		nmsg, err := discord.ChannelMessageEdit(channelID, msgID, txt)
+		if err != nil {
+			logTS("PayoutAlert", fmt.Sprintf("Payout Alert Failed! Channel ID: %s", channelID))
+			msg.Error = err.Error()
+		} else {
+			success++
+			msg.Sent = true
+			msg.ID = nmsg.ID
 		}
 		msgs = append(msgs, msg)
 	}
