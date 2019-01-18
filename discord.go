@@ -183,7 +183,7 @@ func userHasRole(discord *discordgo.Session, guildID, userID, roleName string) b
 	debugTag := "userHasRole"
 	roles, err := discord.GuildRoles(guildID)
 	member, err2 := discord.GuildMember(guildID, userID)
-	if logErrorTS(debugTag, err) || logErrorTS(debugTag, err2) {
+	if err != nil || logErrorTS(debugTag, err2) {
 		return false
 	}
 	roleID := ""

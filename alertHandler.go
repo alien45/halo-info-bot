@@ -82,6 +82,18 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 		}
 		data.LastPayout.Minted = minted
 		data.LastPayout.Fees = fees
+		data.LastPayout.Total = minted + fees
+		t1, t2, t3, t4, err := mndapp.GetAllTierDistribution()
+		if commandErrorIf(err, discord, channelID, "Failed to retrieve tier distribution", debugTag) {
+			return
+		}
+		t1r, t2r, t3r, t4r, duration := mndapp.CalcReward(minted, fees, t1, t2, t3, t4)
+		data.LastPayout.Duration = duration
+		data.LastPayout.Tiers["t1"] = t1r
+		data.LastPayout.Tiers["t2"] = t2r
+		data.LastPayout.Tiers["t3"] = t3r
+		data.LastPayout.Tiers["t4"] = t4r
+
 		discordSend(discord, channelID, "Payout update triggered.", false)
 		chMsgIDs := map[string]string{}
 		for _, msg := range data.LastPayout.AlertData.Messages {

@@ -16,7 +16,7 @@
     },
     "balance": {
         "type": "complex",
-        "description": "Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward-pool', 'charity', 'h-eth', 'dex-halo'. If no address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
+        "description": "Check your account balance. Supported addresses/chains: BTC, Dash, ETH, Halo and  LTC. Address keywords: 'reward-pool', 'charity', 'h-eth', 'dex-halo'. If no address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
         "ispublic":      true,
         "argumentstext": "<address> [ticker]",
         "example":       "!balance 0x1234567890abcdef OR, !balance dex-halo OR, !balance OR, !balance 2 (for 2nd item in the address book)"
