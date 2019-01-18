@@ -57,20 +57,20 @@ func (m *MNDApp) Init(baseURL, mainnetGQL string) {
 
 // PayoutTX Temp.
 type PayoutTX struct {
-	BlockHash        string    `json:"blockHash"`        //: "0xade90ac9ca5786bbd56139b6d10a6dc931dd14bfce55150b3ab46c75f409c29a",
-	BlockNumber      int64     `json:"blockNumber"`      //: 33320561,
-	From             string    `json:"from"`             //: "0xc31aC2C9a88F8427f1a5Ac3Ae92768De34cf2a65",
-	Gas              int64     `json:"gas"`              //: 599000000,
-	GasPrice         string    `json:"gasPrice"`         //: "0",
-	Hash             string    `json:"hash"`             //: "0x0a7afe86712e79fc1f29e86d95a4327556c848abad1b38d776c7d7682408f21d",
-	Input            string    `json:"input"`            //: "0xdf6c39fb000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000030cdb",
-	Nonce            int64     `json:"nonce"`            //: 2209,
-	To               string    `json:"to"`               //: "0xC660934eC084698E373AC844cE29cf27B104F696",
-	TransactionIndex int64     `json:"transactionIndex"` //: 0,
-	Value            string    `json:"value"`            //: "0",
-	V                string    `json:"v"`                //: "0x1c",
-	R                string    `json:"r"`                //: "0xf6c914d7a8cd0325701fd75d5b1a272ebb095e866a045c5ade133676ae9617a2",
-	S                string    `json:"s"`                //: "0x6dc7ea2ed9d0ba5729d88c88bfa94ee17498b592be2c4a2860bf0522ab972a13"
+	BlockHash        string    `json:"blockHash"`
+	BlockNumber      int64     `json:"blockNumber"`
+	From             string    `json:"from"`
+	Gas              int64     `json:"gas"`
+	GasPrice         string    `json:"gasPrice"`
+	Hash             string    `json:"hash"`
+	Input            string    `json:"input"`
+	Nonce            int64     `json:"nonce"`
+	To               string    `json:"to"`
+	TransactionIndex int64     `json:"transactionIndex"`
+	Value            string    `json:"value"`
+	V                string    `json:"v"`
+	R                string    `json:"r"`
+	S                string    `json:"s"`
 	TS               time.Time `json:"ts"`
 	Processed        bool      `json:"processed"`
 }
@@ -109,7 +109,7 @@ type Message struct {
 
 // Format returns payout data as strings
 func (p Payout) Format() (s string) {
-	s = fmt.Sprintf("\n------------------- Payout -------------------\n"+
+	s = fmt.Sprintf(""+
 		"Time   : %s UTC (approx.)\n"+DashLine+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine+
@@ -122,14 +122,6 @@ func (p Payout) Format() (s string) {
 		FormatNum(p.HostingFeeUSD, 4),
 		FillOrLimit(FormatNum(p.HostingFeeHalo, 0), " ", 4),
 		FillOrLimit(p.Price, " ", 10),
-	)
-	s += fmt.Sprintf(DashLine+
-		"Tier 1     | Tier 2    | Tier 3    | Tier 4\n"+DashLine+
-		"%s     | %s    | %s    | %s\n",
-		FillOrLimit(FormatNum(p.Tiers["t1"]-p.HostingFeeHalo, 0), " ", 6),
-		FillOrLimit(FormatNum(p.Tiers["t2"]-p.HostingFeeHalo, 0), " ", 6),
-		FillOrLimit(FormatNum(p.Tiers["t3"]-p.HostingFeeHalo, 0), " ", 6),
-		FillOrLimit(FormatNum(p.Tiers["t4"]-p.HostingFeeHalo, 0), " ", 6),
 	)
 	return
 }
@@ -147,11 +139,17 @@ func (p Payout) FormatROI(blockReward, blockTimeMins float64, collateral map[str
 	t3Reward := p.Tiers["t3"] - p.HostingFeeHalo
 	t4Reward := p.Tiers["t4"] - p.HostingFeeHalo
 
+	s += fmt.Sprintf(""+
+		"            Tier 1 | Tier 2 | Tier 3 | Tier 4\n"+DashLine+
+		"Halo/MN   : %s | %s | %s | %s\n",
+		FillOrLimit(FormatNum(t1Reward, 0), " ", 6),
+		FillOrLimit(FormatNum(t2Reward, 0), " ", 6),
+		FillOrLimit(FormatNum(t3Reward, 0), " ", 6),
+		FillOrLimit(FormatNum(t4Reward, 0), " ", 6),
+	)
 	// Reward per 400k Halo
-	s += fmt.Sprintf("                 __________\n"+
-		"________________/ Per 400K \\___________________\n"+
-
-		"%s     | %s    | %s     | %s\n",
+	s += fmt.Sprintf(DashLine+
+		"Halo/400k : %s | %s | %s | %s\n",
 		FillOrLimit(FormatNum(t1Reward, 0), " ", 6),
 		FillOrLimit(FormatNum(t2Reward/2, 0), " ", 6),
 		FillOrLimit(FormatNum(t3Reward/5, 0), " ", 6),
@@ -163,36 +161,56 @@ func (p Payout) FormatROI(blockReward, blockTimeMins float64, collateral map[str
 	t3HourlyH := t3Reward / lastRMins * 60
 	t4HourlyH := t4Reward / lastRMins * 60
 	// ROI per hour
-	s += fmt.Sprintf("                  _________\n"+
-		"_________________/ Halo/hr \\___________________\n"+
-		"%s     | %s    | %s     | %s\n",
+	s += fmt.Sprintf(DashLine+
+		"Halo/hour : %s | %s | %s | %s\n",
 		FillOrLimit(t1HourlyH, " ", 6),
 		FillOrLimit(t2HourlyH, " ", 6),
 		FillOrLimit(t3HourlyH, " ", 6),
 		FillOrLimit(t4HourlyH, " ", 6),
 	)
-
 	t1DailyROI := (t1Reward / lastRMins * 1440) / collateral["t1"] * 100
 	t2DailyROI := (t2Reward / lastRMins * 1440) / collateral["t2"] * 100
 	t3DailyROI := (t3Reward / lastRMins * 1440) / collateral["t3"] * 100
 	t4DailyROI := (t4Reward / lastRMins * 1440) / collateral["t4"] * 100
+	// ROI days
+	s += fmt.Sprintf(DashLine+
+		"Days/100%% : %s | %s | %s | %s\n",
+		FillOrLimit(FormatNum(100/t1DailyROI, 0), " ", 6),
+		FillOrLimit(FormatNum(100/t2DailyROI, 0), " ", 6),
+		FillOrLimit(FormatNum(100/t3DailyROI, 0), " ", 6),
+		FillOrLimit(FormatNum(100/t4DailyROI, 0), " ", 6),
+	)
 	// ROI per day
-	s += fmt.Sprintf("                  _________\n"+
-		"_________________/ ROI/Day \\___________________\n"+
-		"%s%%    | %s%%   | %s%%    | %s%%\n",
-		FillOrLimit(t1DailyROI, " ", 6),
-		FillOrLimit(t2DailyROI, " ", 6),
-		FillOrLimit(t3DailyROI, " ", 6),
-		FillOrLimit(t4DailyROI, " ", 6),
+	s += fmt.Sprintf(DashLine+
+		"Daily     : %s%% | %s%% | %s%% | %s%%\n",
+		FillOrLimit(t1DailyROI, " ", 5),
+		FillOrLimit(t2DailyROI, " ", 5),
+		FillOrLimit(t3DailyROI, " ", 5),
+		FillOrLimit(t4DailyROI, " ", 5),
+	)
+	// ROI per week
+	s += fmt.Sprintf(DashLine+
+		"Weekly    : %s%% | %s%% | %s%% | %s%%\n",
+		FillOrLimit(t1DailyROI, " ", 5),
+		FillOrLimit(t2DailyROI, " ", 5),
+		FillOrLimit(t3DailyROI, " ", 5),
+		FillOrLimit(t4DailyROI, " ", 5),
+	)
+	// ROI per month
+	s += fmt.Sprintf(DashLine+
+		"Monthly   : %s%% | %s%% | %s%% | %s%%\n",
+		FillOrLimit(t1DailyROI*30, " ", 5),
+		FillOrLimit(t2DailyROI*30, " ", 5),
+		FillOrLimit(t3DailyROI*30, " ", 5),
+		FillOrLimit(t4DailyROI*30, " ", 5),
 	)
 	// ROI per year
-	s += fmt.Sprintf("                  __________\n"+
-		"________________/ ROI/Year \\___________________\n"+
-		"%s%%    | %s%%   | %s%%    | %s%%\n",
-		FillOrLimit(t1DailyROI*365, " ", 6),
-		FillOrLimit(t2DailyROI*365, " ", 6),
-		FillOrLimit(t3DailyROI*365, " ", 6),
-		FillOrLimit(t4DailyROI*365, " ", 6),
+	s += fmt.Sprintf(DashLine+
+		"Yearly    : %s%% | %s%% | %s%% | %s%%\n",
+		FillOrLimit(t1DailyROI*365, " ", 5),
+		FillOrLimit(t2DailyROI*365, " ", 5),
+		FillOrLimit(t3DailyROI*365, " ", 5),
+		FillOrLimit(t4DailyROI*365, " ", 5),
 	)
 	return
 }
@@ -399,12 +417,15 @@ func (m *MNDApp) GetFormattedPoolData() (s string, err error) {
 	}
 	totalMins := (int(minted / m.BlockReward * m.BlockTimeMins))
 	duration := fmt.Sprintf("%02d:%02d", int(totalMins/60), totalMins%60)
-	s = fmt.Sprintf("------------------Reward Pool------------------\n"+
-		"Minted : %s    | Fees     : %s\n"+DashLine+
-		"Total  : %s    | Duration : %s\n",
-		FillOrLimit(FormatNum(minted, 0), " ", 10),
-		FillOrLimit(FormatNum(fees, 0), " ", 10),
-		FillOrLimit(FormatNum(minted+fees, 0), " ", 10), duration,
+	s = fmt.Sprintf(""+
+		"Minted Coins : %s\n"+
+		"Service Fees : %s\n"+
+		"Total        : %s\n"+
+		"Duration     : %s",
+		FormatNum(minted, 0),
+		FormatNum(fees, 0),
+		FormatNum(minted+fees, 0),
+		duration,
 	)
 	return
 }
@@ -417,8 +438,10 @@ func (m MNDApp) GetTierDistribution(tierNo int) (filled float64, err error) {
 	}
 	filled, err = m.GetETHCallWeiToBalance(
 		m.TierDistContract,
-		"0x993ed2a5000000000000000000000000000000000000000000000000000000000000000"+
-			fmt.Sprint(tierNo),
+		fmt.Sprintf(
+			"0x993ed2a5000000000000000000000000000000000000000000000000000000000000000%d",
+			tierNo,
+		),
 	)
 	if err != nil {
 		return
@@ -452,38 +475,4 @@ func (m *MNDApp) GetAllTierDistribution() (t1, t2, t3, t4 float64, err error) {
 	m.tierDistCachedTime = time.Now()
 	t := m.tierDistCache
 	return t[1], t[2], t[3], t[4], err
-}
-
-// GetFormattedMNInfo returns formatted string with masternode tiers and their collateral requirement
-func (m *MNDApp) GetFormattedMNInfo() (s string, err error) {
-	s, err = m.GetFormattedPoolData()
-	if err != nil {
-		return
-	}
-
-	s += m.LastPayout.Format()
-	s += m.LastPayout.FormatROI(m.BlockReward, m.BlockTimeMins, m.Collateral)
-
-	t1, t2, t3, t4, err := m.GetAllTierDistribution()
-	if err != nil {
-		return
-	}
-	s += fmt.Sprintf("                ______________\n"+
-		"__________/ Currently Filled Nodes \\___________\n"+
-		"%s    | %s   | %s    | %s\n",
-		FillOrLimit(FormatNum(t1, 0), " ", 7),
-		FillOrLimit(FormatNum(t2, 0), " ", 7),
-		FillOrLimit(FormatNum(t3, 0), " ", 7),
-		FillOrLimit(FormatNum(t4, 0), " ", 7),
-	)
-	s += fmt.Sprintf("                 ____________\n"+
-		"________________/ Collateral \\_________________\n"+
-		"%s  | %s | %s  | %s\n",
-		FillOrLimit(FormatNumShort(m.Collateral["t1"], 0), " ", 9),
-		FillOrLimit(FormatNumShort(m.Collateral["t2"], 0), " ", 9),
-		FillOrLimit(FormatNumShort(m.Collateral["t3"], 0), " ", 9),
-		FillOrLimit(FormatNumShort(m.Collateral["t4"], 0), " ", 9),
-	)
-
-	return
 }

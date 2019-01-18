@@ -57,8 +57,10 @@
     },
     "mn": {
         "type":        "complex",
-        "description": "Shows masternode collateral, reward pool balances, nodes distribution, last payout and ROI based on last payout.",
-        "ispublic":    true
+        "argumentstext": "[collateral|nodes|payout|pool|roi]",
+        "description": "Get information about masternodes, payouts etc.",
+        "ispublic":    true,
+        "example": "!mn OR, !mn payout OR, !mn roi OR, !mn collateral"
     },
     "nodes": {
         "type":          "complex",

@@ -210,32 +210,24 @@ type Ticker struct {
 
 // Format formats important ticker values into a string
 func (ticker *Ticker) Format() string {
-	base := FillOrLimit(ticker.BaseTicker, " ", 6)
+	base := ticker.BaseTicker
 	return fmt.Sprintf(""+
-		"Pair          : %s\n"+DashLine+
-		"Last Price    : %.8f %s | $%.8f\n"+DashLine+
-		"24H High      : %.8f %s | $%.8f\n"+DashLine+
-		"24H Low       : %.8f %s | $%.8f\n"+DashLine+
-		"Total Supply  : %s\n"+DashLine+
-		"Market Cap USD: $%s\n"+DashLine+
-		"24H Volume    :\n"+DashLine+
-		"      -%s : %s\n"+DashLine+ // Base Bolume
-		"      -%s : %s\n"+DashLine+ // Quote Volume
-		"      -%s : $%s\n"+DashLine+ // USD Volume
-		"Last Updated  : %v UTC\n"+DashLine,
+		"Pair       : %s\n"+DashLine+
+		"Last Price : $%.8f | %.8f %s\n"+DashLine+
+		"24H High   : $%.8f | %.8f %s\n"+DashLine+
+		"24H Low    : $%.8f | %.8f %s\n"+DashLine+
+		"Supply: %s | Market Cap: $%s\n"+DashLine+
+		"                  24hr Volume\n"+DashLine+
+		"%s| %s| $%s",
 		ticker.Pair,
-		ticker.Last, base, ticker.LastPriceUSD,
-		ticker.TwoFourAsk, base, ticker.TwoFourAskUSD,
-		ticker.TwoFourBid, base, ticker.TwoFourBidUSD,
+		ticker.LastPriceUSD, ticker.Last, base,
+		ticker.TwoFourAskUSD, ticker.TwoFourAsk, base,
+		ticker.TwoFourBidUSD, ticker.TwoFourBid, base,
 		FormatNumShort(ticker.QuoteTokenSupply, 4),
 		FormatNumShort(ticker.QuoteTokenMarketCap, 4),
-		base,
-		FormatNumShort(ticker.TwoFourBaseVolume, 4),
-		FillOrLimit(ticker.QuoteTicker, " ", 6),
-		FormatNumShort(ticker.TwoFourQuoteVolume, 4),
-		"USD   ",
+		FillOrLimit(base+" "+FormatNumShort(ticker.TwoFourBaseVolume, 4), " ", 16),
+		FillOrLimit(ticker.QuoteTicker+" "+FormatNumShort(ticker.TwoFourQuoteVolume, 4), " ", 16),
 		FormatNumShort(ticker.TwoFourVolumeUSD, 4),
-		FormatTimeReverse(ticker.LastUpdated.UTC()),
 	)
 }
 
