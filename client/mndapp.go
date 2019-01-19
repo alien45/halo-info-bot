@@ -84,6 +84,7 @@ type Payout struct {
 	Duration       string             `json:"duration"` // duration string with "hh:mm" format
 	Time           time.Time          `json:"time"`
 	Tiers          map[string]float64 `json:"tiers,,omitempty"` // rewards/mn for each tier
+	TierNodes      map[string]float64 `json:"tiernodes"`
 	HostingFeeUSD  float64            `json:"hostingfeeusd"`
 	HostingFeeHalo float64            `json:"hostingfeehalo"`
 	Price          float64            `json:"price"` // Price US$/Halo
@@ -124,6 +125,31 @@ func (p Payout) Format() (s string) {
 		FillOrLimit(FormatNum(p.HostingFeeHalo, 0), " ", 4),
 		FillOrLimit(p.Price, " ", 10),
 	)
+	return
+}
+
+// FormatAlert returns payout data as string for payout alert
+func (p Payout) FormatAlert(blockURL string) (s string) {
+	s = fmt.Sprintf("Delicious payout is served!```js\n%s"+DashLine+
+		"         Tier 1  | Tier 2 | Tier 3 | Tier 4\n"+DashLine+
+		"Rewards: %s | %s | %s | %s\n"+DashLine+
+		"Nodes  : %s | %s | %s | %s\n```",
+		p.Format(),
+		FillOrLimit(FormatNum(p.Tiers["t1"], 0), " ", 7),
+		FillOrLimit(FormatNum(p.Tiers["t2"], 0), " ", 7),
+		FillOrLimit(FormatNum(p.Tiers["t3"], 0), " ", 7),
+		FillOrLimit(FormatNum(p.Tiers["t4"], 0), " ", 7),
+		FillOrLimit(FormatNum(p.TierNodes["t1"], 0), " ", 7),
+		FillOrLimit(FormatNum(p.TierNodes["t2"], 0), " ", 7),
+		FillOrLimit(FormatNum(p.TierNodes["t3"], 0), " ", 7),
+		FillOrLimit(FormatNum(p.TierNodes["t4"], 0), " ", 7),
+	)
+	if p.BlockNumber > 0 {
+		s += blockURL
+	}
+	s += "```fix\nDisclaimer: Actual amount received may vary from " +
+		"the amounts displayed due to the tier distribution returned by " +
+		"API includes ineligible node statuses.```"
 	return
 }
 

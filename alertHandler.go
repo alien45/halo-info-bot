@@ -210,6 +210,11 @@ func checkPayout(discord *discordgo.Session) {
 	p.Tiers = map[string]float64{}
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"],
 		p.Duration = mndapp.CalcReward(p.Minted, p.Fees, t1, t2, t3, t4)
+	p.TierNodes = map[string]float64{}
+	p.TierNodes["t1"] = t1
+	p.TierNodes["t2"] = t2
+	p.TierNodes["t3"] = t3
+	p.TierNodes["t4"] = t4
 	p.HostingFeeHalo, p.HostingFeeUSD, p.Price, _ = getHostingFee(p.Duration)
 	// Log
 	logTS(debugTag, fmt.Sprintf("Total: %.0f | Minted: %.0f | Fees: %.0f | Time: %s | "+
@@ -255,6 +260,11 @@ func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minte
 	p.Time = time.Now()
 	p.Tiers = map[string]float64{}
 	p.Tiers["t1"], p.Tiers["t2"], p.Tiers["t3"], p.Tiers["t4"], p.Duration = mndapp.CalcReward(minted, fees, t1, t2, t3, t4)
+	p.TierNodes = map[string]float64{}
+	p.TierNodes["t1"] = t1
+	p.TierNodes["t2"] = t2
+	p.TierNodes["t3"] = t3
+	p.TierNodes["t4"] = t4
 	p.HostingFeeHalo, p.HostingFeeUSD, p.Price, _ = getHostingFee(p.Duration)
 	if payoutTXReceived {
 		p.BlockNumber = payoutTX.BlockNumber
@@ -275,21 +285,7 @@ func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minte
 func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[string]string) (total, success, fail int) {
 	total = len(channels)
 	msgs := []client.Message{}
-	txt := fmt.Sprintf("Delicious payout is served!```js\n%s"+client.DashLine+
-		"Tier 1     | Tier 2    | Tier 3    | Tier 4\n"+client.DashLine+
-		"%s | %s | %s | %s```",
-		p.Format(),
-		client.FillOrLimit(client.FormatNum(p.Tiers["t1"], 0), " ", 10),
-		client.FillOrLimit(client.FormatNum(p.Tiers["t2"], 0), " ", 10),
-		client.FillOrLimit(client.FormatNum(p.Tiers["t3"], 0), " ", 10),
-		client.FillOrLimit(client.FormatNum(p.Tiers["t4"], 0), " ", 10),
-	)
-	if p.BlockNumber > 0 {
-		txt += fmt.Sprintf("%s/block/%d\n", explorer.Homepage, p.BlockNumber)
-	}
-	txt += "```fix\nDisclaimer: Actual amount received may vary from " +
-		"the amounts displayed due to the tier distribution returned by " +
-		"API includes ineligible node statuses.```"
+	txt := p.FormatAlert(fmt.Sprintf("%s/block/%d\n", explorer.Homepage, p.BlockNumber))
 	for channelID, name := range channels {
 		msg := client.Message{ChannelID: channelID}
 		dmsg, err := discordSend(discord, channelID, txt, false)
@@ -327,13 +323,7 @@ func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[
 func updatePayoutAlerts(discord *discordgo.Session, p client.Payout, channelMsgIDs map[string]string) (total, success, fail int) {
 	total = len(channelMsgIDs)
 	msgs := []client.Message{}
-	txt := "Delicious payout is served!```js\n" + p.Format() + "```"
-	if p.BlockNumber > 0 {
-		txt += fmt.Sprintf("%s/block/%d\n", explorer.Homepage, p.BlockNumber)
-	}
-	txt += "```fix\nDisclaimer: Actual amount received may vary from " +
-		"the amounts displayed due to the tier distribution returned by " +
-		"API includes ineligible node statuses.```"
+	txt := p.FormatAlert(fmt.Sprintf("%s/block/%d\n", explorer.Homepage, p.BlockNumber))
 	for channelID, msgID := range channelMsgIDs {
 		msg := client.Message{ChannelID: channelID}
 		nmsg, err := discord.ChannelMessageEdit(channelID, msgID, txt)
