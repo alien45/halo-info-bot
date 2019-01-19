@@ -94,6 +94,10 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 		data.LastPayout.Tiers["t3"] = t3r
 		data.LastPayout.Tiers["t4"] = t4r
 
+		data.LastPayout.HostingFeeHalo,
+			data.LastPayout.HostingFeeUSD,
+			data.LastPayout.Price, _ = getHostingFee(duration)
+
 		discordSend(discord, channelID, "Payout update triggered.", false)
 		chMsgIDs := map[string]string{}
 		for _, msg := range data.LastPayout.AlertData.Messages {
