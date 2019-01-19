@@ -9,14 +9,14 @@
     },
     "alert": {
         "type":          "complex",
-        "description":   "Enable/disable automatic alerts. Alert types: payout. Actions:on, off, status, send. Only root user can use 'send' to trigger payout alert manually.",
+        "description":   "Enable/disable automatic alerts. Alert types: payout. Actions:on, off, status, send, update. Only root user can use 'send' to trigger payout alert manually.",
         "ispublic":      true,
         "argumentstext": "<type> [action]",
-        "example":       "!alert payout on OR, !alert payout status"
+        "example":       "!alert payout on OR, !alert payout status OR, !alert payout send 99999 99 OR, !alert payout update 10000 100"
     },
     "balance": {
         "type": "complex",
-        "description": "Check your account balance. Supported addresses/chains: HALO & ETH. Address keywords: 'reward-pool', 'charity', 'h-eth', 'dex-halo'. If no address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
+        "description": "Check your account balance. Supported addresses/chains: BTC, Dash, ETH, Halo and  LTC. Address keywords: 'reward-pool', 'charity', 'h-eth', 'dex-halo'. If no address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
         "ispublic":      true,
         "argumentstext": "<address> [ticker]",
         "example":       "!balance 0x1234567890abcdef OR, !balance dex-halo OR, !balance OR, !balance 2 (for 2nd item in the address book)"
