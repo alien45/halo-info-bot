@@ -66,8 +66,8 @@
         "type":          "complex",
         "description":   "Lists masternodes owned by a specific address. If no address supplied, will use user's first address book item when available.",
         "ispublic":      false,
-        "argumentstext": "<address> [address2] [address3....]",
-        "example":       "!nodes 0x1234 OR, !nodes OR, !nodes 0x123 0x324 0x234"
+        "argumentstext": "<address> [{full}] [address2] [address3....]",
+        "example":       "!nodes 0x1234 OR, !nodes OR, !nodes full 0x123 0x324 0x234"
     },
     "orders": {
         "type":          "complex",
