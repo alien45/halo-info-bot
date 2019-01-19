@@ -10,26 +10,24 @@ import (
 )
 
 func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, userAddresses []string, numArgs, numAddresses int) {
-	addresses := cmdArgs
 	addrs := map[string]int{}
 	nodes := []client.Masternode{}
 	txt := ""
 	summary := ""
-	// action := ""
-	// if numArgs >= 0 {
-	// 	action := strings.ToLower(cmdArgs[0])
-	// 	switch action {
-	// 	case "summary", "full":
-	// 		// Remove arg so only addresses remain
-	// 		cmdArgs = cmdArgs[1:]
-	// 		break
-	// 	default:
-	// 		action = "table"
-	// 	}
-	// }
-
-	// TODO : separate summary with an argument
-	// TODO : add argument to list full addresses and balance and display using cards layout
+	action := "table"
+	if numArgs > 0 {
+		action = strings.ToLower(cmdArgs[0])
+		switch action {
+		case "full": //"summary"
+			// Remove arg so only addresses remain
+			cmdArgs = cmdArgs[1:]
+			numArgs = len(cmdArgs)
+			break
+		default:
+			action = "table"
+		}
+	}
+	addresses := cmdArgs
 
 	if numArgs == 0 {
 		// No address supplied
@@ -50,7 +48,6 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 			addresses[i] = userAddresses[itemNum-1]
 		}
 	}
-	// fmt.Println("Addresses: ", addresses)
 	for i := 0; i < len(addresses); i++ {
 		address := strings.ToUpper(addresses[i])
 		if _, skip := addrs[address]; skip || !strings.HasPrefix(addresses[i], "0x") {
@@ -65,11 +62,20 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 		nodes = append(nodes, iNodes...)
 	}
 	txt, summary = mndapp.FormatNodes(nodes)
+	if action == "full" {
+		txt = ""
+		for i := 0; i < len(nodes); i++ {
+			_, err := discordSend(discord, channelID, "js\n"+nodes[i].Format(), true)
+			logErrorTS(debugTag, err)
+		}
+	}
 SendMessage:
-	_, err := discordSend(discord, channelID, "diff\n"+txt, true)
-	logErrorTS(debugTag, err)
+	if txt != "" {
+		_, err := discordSend(discord, channelID, "diff\n"+txt, true)
+		logErrorTS(debugTag, err)
+	}
 	if summary != "" {
-		_, err = discordSend(discord, channelID, "js\n"+summary, true)
+		_, err := discordSend(discord, channelID, "js\n"+summary, true)
 		logErrorTS(debugTag, err)
 	}
 }

@@ -218,10 +218,10 @@ func (p Payout) FormatROI(blockReward, blockTimeMins float64, collateral map[str
 	// ROI per week
 	s += fmt.Sprintf(DashLine+
 		"Weekly    : %s%% | %s%% | %s%% | %s%%\n",
-		FillOrLimit(t1DailyROI, " ", 5),
-		FillOrLimit(t2DailyROI, " ", 5),
-		FillOrLimit(t3DailyROI, " ", 5),
-		FillOrLimit(t4DailyROI, " ", 5),
+		FillOrLimit(t1DailyROI*7, " ", 5),
+		FillOrLimit(t2DailyROI*7, " ", 5),
+		FillOrLimit(t3DailyROI*7, " ", 5),
+		FillOrLimit(t4DailyROI*7, " ", 5),
 	)
 	// ROI per month
 	s += fmt.Sprintf(DashLine+
@@ -282,38 +282,38 @@ type Masternode struct {
 	Shares        float64 `json:"SHARES"`
 	State         int64   `json:"STATE"`
 	EpochTS       uint64  `json:"TIMESTAMP,string"`
-	OwnerAddress  string
 	RewardBalance float64
 }
 
-// Format formats Masternode into string
-func (m Masternode) Format() string {
-	status := "Inactive"
-	colorSign := "-"
+// GetStatusName returns name of node status by state
+func (m Masternode) GetStatusName() string {
 	switch m.State {
 	case 1:
-		status = "Initialize"
-		break
+		return "Initialize"
 	case 2:
-		status = "Deposited"
-		break
+		return "Deposited"
 	case 3:
-		status = "Active"
-		colorSign = "+"
-		break
+		return "Active"
 	case 4:
-		status = "Terminate"
-		break
+		return "Terminate"
+	default:
+		return "Unknown"
 	}
-	mlen := len(m.Address)
-	return fmt.Sprintf(
-		"%s|%s |%d| %s | %s| %s\n",
-		colorSign,
-		m.Address[:5]+".."+m.Address[mlen-3:],
+}
+
+// Format formats Masternode into string with cards layout
+func (m Masternode) Format() string {
+	return fmt.Sprintf(""+
+		"Contarct Address:\n%s\n"+DashLine+
+		"Owner Address   :\n%s\n"+DashLine+
+		"Tier   : %d          | Shares  : %s\n"+DashLine+
+		"Status : %s  | Rewards : %s",
+		m.Address,
+		m.Owner,
 		m.Tier,
-		FillOrLimit(FormatNum(m.Shares, 0), " ", 7),
-		FillOrLimit(FormatNum(m.RewardBalance, 0), " ", 8),
-		status,
+		FormatNum(m.Shares, 0),
+		FillOrLimit(m.GetStatusName(), " ", 9),
+		FormatNum(m.RewardBalance, 0),
 	)
 }
 
@@ -339,8 +339,7 @@ func (m *MNDApp) GetMasternodes(ownerAddress string) (nodes []Masternode, err er
 	nodes = result.Result
 	for i := 0; i < len(nodes); i++ {
 		nodes[i].Shares /= 1e18
-		nodes[i].OwnerAddress = ownerAddress
-		nodes[i].RewardBalance, _ = m.GetMNRewardBalance(nodes[i].Address, ownerAddress)
+		nodes[i].RewardBalance, _ = m.GetMNRewardBalance(nodes[i].Address, nodes[i].Owner)
 	}
 	return
 }
@@ -361,7 +360,22 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 	list = "    Address  |T|  Shares | Rewards | Status\n" + DashLine
 	for i := 0; i < num; i++ {
 		n := nodes[i]
-		list += n.Format() + DashLine
+		colorSign := "-"
+		if n.State == 3 {
+			// Active status
+			colorSign = "+"
+		}
+		mlen := len(n.Address)
+		nTxt := fmt.Sprintf(
+			"%s|%s |%d| %s | %s| %s\n",
+			colorSign,
+			n.Address[:5]+".."+n.Address[mlen-3:],
+			n.Tier,
+			FillOrLimit(FormatNum(n.Shares, 0), " ", 7),
+			FillOrLimit(FormatNum(n.RewardBalance, 0), " ", 8),
+			n.GetStatusName(),
+		)
+		list += nTxt + DashLine
 		tierShares[n.Tier] += n.Shares
 		totalInvested += n.Shares
 		rewardBalance += n.RewardBalance
@@ -371,11 +385,11 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 	}
 
 	summary = "================== Summary ===================\n" +
-		"Invested   | Active     | Inactive   | Nodes\n" + DashLine +
+		"Invested    | Active      | Inactive    | Nodes\n" + DashLine +
 		fmt.Sprintf("%s| %s| %s| %d\n",
-			FillOrLimit(FormatNumShort(totalInvested, 4), " ", 11),
-			FillOrLimit(FormatNumShort(totalInvested-inactive, 4), " ", 11),
-			FillOrLimit(FormatNumShort(inactive, 4), " ", 11),
+			FillOrLimit(FormatNumShort(totalInvested, 4), " ", 12),
+			FillOrLimit(FormatNumShort(totalInvested-inactive, 4), " ", 12),
+			FillOrLimit(FormatNumShort(inactive, 4), " ", 12),
 			num)
 	summary += "\nTier 1    | Tier 2    | Tier 3    | Tier 4\n" + DashLine +
 		fmt.Sprintf("%s| %s| %s| %s\n",
