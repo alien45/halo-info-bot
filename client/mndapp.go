@@ -131,7 +131,7 @@ func (p Payout) Format() (s string) {
 // FormatAlert returns payout data as string for payout alert
 func (p Payout) FormatAlert(blockURL string) (s string) {
 	s = fmt.Sprintf("Delicious payout is served!```js\n%s"+DashLine+
-		"         Tier 1  | Tier 2 | Tier 3 | Tier 4\n"+DashLine+
+		"         Tier 1  | Tier 2  | Tier 3  | Tier 4\n"+DashLine+
 		"Rewards: %s | %s | %s | %s\n"+DashLine+
 		"Nodes  : %s | %s | %s | %s\n```",
 		p.Format(),
