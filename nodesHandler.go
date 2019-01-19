@@ -40,7 +40,6 @@ func cmdNodes(discord *discordgo.Session, channelID, debugTag string, cmdArgs, u
 		}
 		addresses = userAddresses
 	} else {
-
 		for i, addr := range addresses {
 			// Check if address book index supplied
 			itemNum, err := strconv.Atoi(addr)
@@ -117,6 +116,9 @@ func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []str
 		break
 	case "pool", "reward-pool":
 		txt, err = m.GetFormattedPoolData()
+		if err != nil {
+			txt = fmt.Sprintf("Failed to retrive pool data. Error: %v", err)
+		}
 		break
 	case "roi":
 		txt = m.LastPayout.FormatROI(m.BlockReward, m.BlockTimeMins, m.Collateral)

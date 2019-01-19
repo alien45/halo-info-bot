@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -280,12 +281,12 @@ func (m Masternode) Format() string {
 	}
 	mlen := len(m.Address)
 	return fmt.Sprintf(
-		"%s|%s |%d| %s | %s\n", //| %s
+		"%s|%s |%d| %s | %s| %s\n",
 		colorSign,
 		m.Address[:5]+".."+m.Address[mlen-3:],
 		m.Tier,
 		FillOrLimit(FormatNum(m.Shares, 0), " ", 7),
-		// FillOrLimit(m.RewardBalance, " ", 5),
+		FillOrLimit(FormatNum(m.RewardBalance, 0), " ", 8),
 		status,
 	)
 }
@@ -313,7 +314,7 @@ func (m *MNDApp) GetMasternodes(ownerAddress string) (nodes []Masternode, err er
 	for i := 0; i < len(nodes); i++ {
 		nodes[i].Shares /= 1e18
 		nodes[i].OwnerAddress = ownerAddress
-		// nodes[i].RewardBalance, _ = m.GetMNRewardBalance(nodes[i].Address, ownerAddress)
+		nodes[i].RewardBalance, _ = m.GetMNRewardBalance(nodes[i].Address, ownerAddress)
 	}
 	return
 }
@@ -327,15 +328,17 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 	}
 
 	tierShares := map[int64]float64{}
-	totalInvested := float64(0)
-	inactive := float64(0)
+	var totalInvested float64
+	var inactive float64
+	var rewardBalance float64
 
-	list = "    Address  |T|  Shares | Status\n" + DashLine
+	list = "    Address  |T|  Shares | Rewards | Status\n" + DashLine
 	for i := 0; i < num; i++ {
 		n := nodes[i]
 		list += n.Format() + DashLine
 		tierShares[n.Tier] += n.Shares
 		totalInvested += n.Shares
+		rewardBalance += n.RewardBalance
 		if n.State != 3 {
 			inactive += n.Shares
 		}
@@ -349,19 +352,24 @@ func (MNDApp) FormatNodes(nodes []Masternode) (list, summary string) {
 			FillOrLimit(FormatNumShort(inactive, 4), " ", 11),
 			num)
 	summary += "\nTier 1    | Tier 2    | Tier 3    | Tier 4\n" + DashLine +
-		fmt.Sprintf("%s| %s| %s| %s",
+		fmt.Sprintf("%s| %s| %s| %s\n",
 			FillOrLimit(FormatNumShort(tierShares[1], 2), " ", 10),
 			FillOrLimit(FormatNumShort(tierShares[2], 2), " ", 10),
 			FillOrLimit(FormatNumShort(tierShares[3], 2), " ", 10),
 			FillOrLimit(FormatNumShort(tierShares[4], 2), " ", 10),
 		)
+	if rewardBalance > 0 {
+		summary += fmt.Sprintf("%sRewards Balance: %s", DashLine, FormatNum(rewardBalance, 0))
+	}
 	return
 }
 
 // GetMNRewardBalance retrieves masternode reward balance
 func (m MNDApp) GetMNRewardBalance(contractAddr, ownerAddr string) (balance float64, err error) {
-
-	return
+	return m.GetETHCallWeiToBalance(
+		contractAddr,
+		"0x13692c4d000000000000000000000000"+strings.TrimPrefix(ownerAddr, "0x"),
+	)
 }
 
 // GetETHCallWeiToBalance retrieves invokes eth_call to a smart contract and converts retunted wei to balance

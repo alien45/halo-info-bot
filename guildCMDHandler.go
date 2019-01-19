@@ -19,6 +19,7 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 	guildID := message.GuildID
 	exists := false
 	notExistsTxt := "Guild command not found!"
+	cmdName, action := "", ""
 	var err error
 	if !userHasRole(discord, guildID, userID, guildAdminRole) &&
 		fmt.Sprint(message.Author) != conf.Client.DiscordBot.RootUser {
@@ -33,8 +34,10 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 		text = "Command name required"
 		goto SendMessage
 	}
-	_, exists = commands[args[1]]
-	switch strings.ToLower(args[0]) {
+	action = args[0]
+	cmdName = args[1]
+	_, exists = guildCommands[guildID][cmdName]
+	switch strings.ToLower(action) {
 	case "update":
 		if !exists {
 			text = notExistsTxt
@@ -46,7 +49,7 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 			text = "Message required"
 			goto SendMessage
 		}
-		if strings.ToLower(args[1]) == guildCMD {
+		if strings.ToLower(cmdName) == guildCMD {
 			text = "This command cannot be overridden."
 			goto SendMessage
 		}
@@ -55,14 +58,14 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 			text = "Message cannot be more than 500 characters"
 			goto SendMessage
 		}
-		err = addGuildCommand(guildID, strings.ToLower(args[1]), msg)
+		err = addGuildCommand(guildID, strings.ToLower(cmdName), msg)
 		break
 	case "remove", "delete":
 		if !exists {
 			text = notExistsTxt
 			goto SendMessage
 		}
-		err = removeGuildCommand(guildID, args[1])
+		err = removeGuildCommand(guildID, cmdName)
 		break
 	default:
 		text = "Invalid action"
@@ -71,7 +74,10 @@ func guildCMDHandler(discord *discordgo.Session, message *discordgo.MessageCreat
 
 	text = "Action failed"
 	if !logErrorTS(guildCMD, err) {
-		text = "Saved"
+		text = action + "d"
+		if action == "add" {
+			text = "added"
+		}
 		// generate list of commands
 		generateCommandLists()
 	}

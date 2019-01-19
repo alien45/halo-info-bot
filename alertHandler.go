@@ -275,15 +275,23 @@ func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minte
 func sendPayoutAlerts(discord *discordgo.Session, p client.Payout, channels map[string]string) (total, success, fail int) {
 	total = len(channels)
 	msgs := []client.Message{}
+	txt := fmt.Sprintf("Delicious payout is served!```js\n%s"+client.DashLine+
+		"Tier 1     | Tier 2    | Tier 3    | Tier 4\n"+client.DashLine+
+		"%s | %s | %s | %s```",
+		p.Format(),
+		client.FillOrLimit(client.FormatNum(p.Tiers["t1"], 0), " ", 10),
+		client.FillOrLimit(client.FormatNum(p.Tiers["t2"], 0), " ", 10),
+		client.FillOrLimit(client.FormatNum(p.Tiers["t3"], 0), " ", 10),
+		client.FillOrLimit(client.FormatNum(p.Tiers["t4"], 0), " ", 10),
+	)
+	if p.BlockNumber > 0 {
+		txt += fmt.Sprintf("%s/block/%d\n", explorer.Homepage, p.BlockNumber)
+	}
+	txt += "```fix\nDisclaimer: Actual amount received may vary from " +
+		"the amounts displayed due to the tier distribution returned by " +
+		"API includes ineligible node statuses.```"
 	for channelID, name := range channels {
 		msg := client.Message{ChannelID: channelID}
-		txt := "Delicious payout is served!```js\n" + p.Format() + "```"
-		if p.BlockNumber > 0 {
-			txt += fmt.Sprintf("%s/block/%d\n", explorer.Homepage, p.BlockNumber)
-		}
-		txt += "```fix\nDisclaimer: Actual amount received may vary from " +
-			"the amounts displayed due to the tier distribution returned by " +
-			"API includes ineligible node statuses.```"
 		dmsg, err := discordSend(discord, channelID, txt, false)
 		if err != nil {
 			logTS("PayoutAlert", fmt.Sprintf("Payout Alert Failed! Channel ID: %s, Name: %s", channelID, name))
