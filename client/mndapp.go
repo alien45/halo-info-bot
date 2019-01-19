@@ -304,12 +304,12 @@ func (m Masternode) GetStatusName() string {
 // Format formats Masternode into string with cards layout
 func (m Masternode) Format() string {
 	return fmt.Sprintf(""+
-		"Contarct Address:\n%s\n"+DashLine+
 		"Owner Address   :\n%s\n"+DashLine+
+		"Contract Address:\n%s\n"+DashLine+
 		"Tier   : %d          | Shares  : %s\n"+DashLine+
 		"Status : %s  | Rewards : %s",
-		m.Address,
 		m.Owner,
+		m.Address,
 		m.Tier,
 		FormatNum(m.Shares, 0),
 		FillOrLimit(m.GetStatusName(), " ", 9),
