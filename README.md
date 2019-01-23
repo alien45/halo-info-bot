@@ -4,7 +4,7 @@ Discord bot for the Halo Platform that incorporates internal and external APIs f
 
 Wanna try it out? If you are on Discord, why not check it out here: https://discord.gg/5Z7ZqeJ
 
-## ***Halo Info Bot has been added Halo Platform discord server*** 
+## ***Halo Info Bot has been added to Halo Platform discord server*** 
 Check it out here: https://discord.gg/zCXW3uj
 
 
