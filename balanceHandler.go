@@ -20,12 +20,13 @@ func cmdBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs,
 	var err error
 	balfunc := explorer.GetHaloBalance
 	ticker := "HALO"
-	dp := 0
+	dp := 8
 
 	// Check if balance enquiry is for Ethereum
 	if numArgs > 0 {
-		ticker = strings.ToUpper(cmdArgs[numArgs-1])
-		switch ticker {
+		t := strings.ToUpper(cmdArgs[numArgs-1])
+		valid := true
+		switch t {
 		case "BTC":
 			balfunc = getBTCBalance
 			break
@@ -38,11 +39,18 @@ func cmdBalance(discord *discordgo.Session, channelID, debugTag string, cmdArgs,
 		case "LTC":
 			balfunc = getLTCBalance
 			break
+		case "HALO":
+			break
+		default:
+			valid = false
+			break
 		}
-		// remove token argument to keep only addresses/keywords
-		cmdArgs = cmdArgs[:numArgs-1]
-		numArgs = len(cmdArgs)
-		dp = 8
+		if valid {
+			// remove token argument to keep only addresses/keywords
+			cmdArgs = cmdArgs[:numArgs-1]
+			numArgs = len(cmdArgs)
+			ticker = t
+		}
 	}
 	// Handle coin/token balance commands
 	if numArgs == 0 || cmdArgs[0] == "" {
