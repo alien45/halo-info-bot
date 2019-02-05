@@ -88,9 +88,9 @@ func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []str
 	switch arg0 {
 	case "collateral":
 		txt = fmt.Sprintf(""+
-			"Tier 1: %s\n"+
-			"Tier 2: %s\n"+
-			"Tier 3: %s\n"+
+			"Tier 1: %s\n"+client.DashLine+
+			"Tier 2: %s\n"+client.DashLine+
+			"Tier 3: %s\n"+client.DashLine+
 			"Tier 4: %s",
 			client.FormatNumShort(m.Collateral["t1"], 0),
 			client.FormatNumShort(m.Collateral["t2"], 0),
@@ -115,9 +115,9 @@ func cmdMN(discord *discordgo.Session, channelID, debugTag string, cmdArgs []str
 	case "payout", "last-payout":
 		fallthrough
 	default:
-		txt = "________________/  Last Payout \\_______________\n"
+		txt = "________________/ Last Payout \\_____________\n"
 		txt += m.LastPayout.Format()
-		txt += "\n____________________/ ROI  \\____________________\n"
+		txt += "\n___________________/ ROI \\__________________\n"
 		txt += m.LastPayout.FormatROI(m.BlockReward, m.BlockTimeMins, m.Collateral)
 		break
 	case "pool", "reward-pool":

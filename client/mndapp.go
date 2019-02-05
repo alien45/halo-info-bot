@@ -115,7 +115,7 @@ func (p Payout) Format() (s string) {
 		"Time   : %s UTC (approx.)\n"+DashLine+
 		"Minted : %s    | Fees     : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine+
-		"Hosting Fee/MN: $%s (%sH) @ $%s/H\n",
+		"Hosting Fee: $%s (%sH) @ $%s/H\n",
 		FillOrLimit(p.Time.UTC().String(), " ", 16),
 		FillOrLimit(FormatNum(p.Minted, 0), " ", 10),
 		FillOrLimit(FormatNum(p.Fees, 0), " ", 10),

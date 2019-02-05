@@ -592,13 +592,11 @@ func (dex *DEX) GetBalances(userAddress string, tickers []string) (balances map[
 		return
 	}
 	request.Header.Set("Content-Type", "application/json")
-	//client := &http.Client{}
 	response, err := (&http.Client{}).Do(request)
 	if err != nil {
 		return
 	}
 
-	// result := map[string]map[string]map[string]float64{}
 	result := struct {
 		Data map[string][]Balance `json:"data"`
 	}{}
