@@ -582,7 +582,6 @@ func (dex *DEX) GetBalances(userAddress string, tickers []string) (balances map[
 		return
 	}
 
-	// TODO: improve GQL query to retrieve multiple token balances with a single query.
 	gqlQueryStr := fmt.Sprintf(`{
 		"operationName": "balances",
 		"query":"query balances(%s) { %s }",
@@ -647,7 +646,7 @@ func (dex *DEX) GetBalancesFormatted(address string, tickers []string, showZeroB
 		if len(tokenBalance) == 0 {
 			tokenBalance = append(tokenBalance, Balance{Balance: 0, Available: 0})
 		}
-		if !showZeroBalance && tokenBalance[0].Balance < 1e-10 {
+		if !showZeroBalance && tokenBalance[0].Balance < 1e-8 {
 			// Balance is zero
 			continue
 		}

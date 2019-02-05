@@ -40,16 +40,13 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 	txt := ""
 	var err error
 	address := ""
+	showZeroBalances := true
 	if numArgs == 0 {
 		cmdArgs = []string{""}
 	}
 	address = strings.ToLower(cmdArgs[0])
 	tickerSupplied := numArgs >= 2 && cmdArgs[1] != "0"
-	showZero := numArgs == 2 && cmdArgs[1] == "0" || tickerSupplied
 	tickers := cmdArgs[1:]
-	if showZero && numArgs == 2 {
-		tickers = cmdArgs[2:]
-	}
 	if address == "" || !strings.HasPrefix(address, "0x") {
 		// Invalid address supplied
 		i, err := strconv.ParseInt(address, 10, 64)
@@ -68,7 +65,8 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 	}
 
 	if !tickerSupplied {
-		// No ticker supplied, show all tickers' balance
+		// No ticker supplied, show all tickers' non-zero balances
+		showZeroBalances = false
 		tokens, err := dex.GetTokens()
 		if err != nil {
 			txt = "Failed to retrieve tokens"
@@ -80,7 +78,7 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 		}
 	}
 	logTS(debugTag, "Address: "+address)
-	txt, err = dex.GetBalancesFormatted(address, tickers, showZero)
+	txt, err = dex.GetBalancesFormatted(address, tickers, showZeroBalances)
 	if err != nil {
 		txt = "Failed to retrieve balance."
 		logErrorTS(debugTag, err)
