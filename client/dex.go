@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -608,9 +609,10 @@ func (dex *DEX) GetBalances(userAddress string, tickers []string) (balances map[
 		return
 	}
 	for t := range result.Data {
+		divideBy := math.Pow10(int(tokens[t].Decimals))
 		for k := range result.Data[t] {
-			result.Data[t][k].Available /= 1e18
-			result.Data[t][k].Balance /= 1e18
+			result.Data[t][k].Available /= divideBy
+			result.Data[t][k].Balance /= divideBy
 		}
 	}
 	balances = result.Data
