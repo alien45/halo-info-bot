@@ -147,7 +147,7 @@ func discordInterval(discord *discordgo.Session, seconds int, executeOnInit bool
 		f(discord)
 	}
 	// Execute on interval
-	for range time.Tick(time.Second * time.Duration(seconds)) {
+	for range time.Tick(time.Second * 120) {
 		f(discord)
 	}
 }

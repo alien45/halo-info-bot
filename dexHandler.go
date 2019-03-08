@@ -40,16 +40,13 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 	txt := ""
 	var err error
 	address := ""
+	showZeroBalances := true
 	if numArgs == 0 {
 		cmdArgs = []string{""}
 	}
 	address = strings.ToLower(cmdArgs[0])
 	tickerSupplied := numArgs >= 2 && cmdArgs[1] != "0"
-	showZero := numArgs == 2 && cmdArgs[1] == "0" || tickerSupplied
 	tickers := cmdArgs[1:]
-	if showZero && numArgs == 2 {
-		tickers = cmdArgs[2:]
-	}
 	if address == "" || !strings.HasPrefix(address, "0x") {
 		// Invalid address supplied
 		i, err := strconv.ParseInt(address, 10, 64)
@@ -68,7 +65,8 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 	}
 
 	if !tickerSupplied {
-		// No ticker supplied, show all tickers' balance
+		// No ticker supplied, show all tickers' non-zero balances
+		showZeroBalances = false
 		tokens, err := dex.GetTokens()
 		if err != nil {
 			txt = "Failed to retrieve tokens"
@@ -80,7 +78,7 @@ func cmdDexBalance(discord *discordgo.Session, channelID, debugTag string, cmdAr
 		}
 	}
 	logTS(debugTag, "Address: "+address)
-	txt, err = dex.GetBalancesFormatted(address, tickers, showZero)
+	txt, err = dex.GetBalancesFormatted(address, tickers, showZeroBalances)
 	if err != nil {
 		txt = "Failed to retrieve balance."
 		logErrorTS(debugTag, err)
@@ -149,24 +147,26 @@ func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArg
 
 func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArgs, userAddresses []string, numArgs, numAddresses int, command string) {
 	//TODO: add argument for timezone or allow user to save timezone??
-	tokenAddresses, err := dex.GetTokens()
+	allTokens, err := dex.GetTokens()
 	address := ""
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
 		return
 	}
-	quoteAddr := tokenAddresses["HALO"].HaloChainAddress
-	baseAddr := tokenAddresses["ETH"].HaloChainAddress
+	quoteAddr := allTokens["HALO"].HaloChainAddress
+	baseAddr := allTokens["ETH"].HaloChainAddress
 	limit := "10"
+	dp := allTokens["ETH"].Decimals
 
 	if numArgs > 0 {
 		// Token symbol supplied
-		quoteTicker, _ := tokenAddresses[strings.ToUpper(cmdArgs[0])]
-		quoteAddr = quoteTicker.HaloChainAddress
+		quoteToken, _ := allTokens[strings.ToUpper(cmdArgs[0])]
+		quoteAddr = quoteToken.HaloChainAddress
 	}
 
 	if numArgs > 1 {
-		baseTicker, _ := tokenAddresses[strings.ToUpper(cmdArgs[1])]
-		baseAddr = baseTicker.HaloChainAddress
+		baseToken, _ := allTokens[strings.ToUpper(cmdArgs[1])]
+		baseAddr = baseToken.HaloChainAddress
+		dp = baseToken.Decimals
 	}
 	if quoteAddr == "" || baseAddr == "" {
 		_, err := discordSend(discord, channelID, fmt.Sprint("Invalid pair supplied: ", strings.Join(cmdArgs, "/")), true)
@@ -212,7 +212,7 @@ func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArg
 		// logErrorTS(debugTag, err)
 		// dataStr = dex.FormatOrders(orderbook)
 	} else {
-		trades, err := dex.GetTrades(quoteAddr, baseAddr, limit)
+		trades, err := dex.GetTrades(quoteAddr, baseAddr, limit, dp)
 		logErrorTS(debugTag, err)
 		dataStr = "diff\n" + dex.FormatTrades(trades)
 	}

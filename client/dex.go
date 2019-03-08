@@ -94,7 +94,8 @@ func (dex *DEX) FormatTrades(trades []Trade) (s string) {
 }
 
 // GetTradesWithGQLStr retrieves trades using pre-constructed GraphQL query string
-func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string) (trades []Trade, err error) {
+// TODO: deprecated
+func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string, dp int64) (trades []Trade, err error) {
 	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
 	if err != nil {
 		return
@@ -112,11 +113,12 @@ func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string) (trades []Trad
 	if response.StatusCode != http.StatusOK {
 		err = fmt.Errorf("API request failed! Status: %s", response.Status)
 	}
-	return dex.GetTradesFromResult(responseBytes, baseAddr)
+	return dex.GetTradesFromResult(responseBytes, baseAddr, dp)
 }
 
 // GetTradesFromResult extracts list of trades from the byte array of the API response
-func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string) (trades []Trade, err error) {
+// TODO: deprecated
+func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string, dp int64) (trades []Trade, err error) {
 	tradesResult := struct {
 		Data struct {
 			Trades []Trade `json:"trades"`
@@ -129,18 +131,19 @@ func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string) (tr
 
 	trades = tradesResult.Data.Trades
 	// Process received data to extract IsBuy, Price and Amount
+	divideBy := math.Pow10(int(dp))
 	for i := 0; i < len(trades); i++ {
 		trades[i].IsBuy = strings.ToUpper(trades[i].TokenGet) == strings.ToUpper(baseAddr)
 		trades[i].Time = time.Unix(0, trades[i].TimeEpochNano).UTC()
 		if trades[i].IsBuy {
 			// buy
-			trades[i].Amount = trades[i].AmountGive / 1e18
+			trades[i].Amount = trades[i].AmountGive / divideBy
 			trades[i].Price = trades[i].AmountGet / trades[i].AmountGive
 			continue
 		}
 
 		// sell
-		trades[i].Amount = trades[i].AmountGet / 1e18
+		trades[i].Amount = trades[i].AmountGet / divideBy
 		trades[i].Price = trades[i].AmountGive / trades[i].AmountGet
 	}
 	log.Println("[DEX] [GetTrades] received trades: ", len(trades))
@@ -148,7 +151,8 @@ func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string) (tr
 }
 
 // GetTrades function retrieves recent trades from HaloDEX
-func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, err error) {
+// TODO: deprecated
+func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string, dp int64) (trades []Trade, err error) {
 	//quick and dirty GQL query
 	gqlQueryStr := `{
 		"operationName": "trades",
@@ -160,11 +164,12 @@ func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string) (trades []Trade, er
 			"quoteAddress" : "` + quoteAddr + `"
 		}
 	}`
-	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr)
+	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr, dp)
 }
 
 // GetTradesByTime retrieves trades since given blockstime
-func (dex *DEX) GetTradesByTime(quoteAddr, baseAddr string, blockTime time.Time) (trades []Trade, err error) {
+// TODO: deprecated
+func (dex *DEX) GetTradesByTime(quoteAddr, baseAddr string, blockTime time.Time, dp int64) (trades []Trade, err error) {
 	gqlQueryStr := `{
 		"operationName": "trades",
 		"query": "query trades($baseAddress: String!, $quoteAddress: String!, $timeFrom: String!) ` +
@@ -177,32 +182,36 @@ func (dex *DEX) GetTradesByTime(quoteAddr, baseAddr string, blockTime time.Time)
 			"timeFrom": "000000000000000000000` + fmt.Sprint(blockTime.UTC().UnixNano()) + `"
 		}
 	}`
-	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr)
+	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr, dp)
 }
 
 // Ticker describes a HaloDEX ticker response
 type Ticker struct {
-	Pair               string  `json:"pair"`
-	BaseTicker         string  `json:"baseTicker"`
-	QuoteTicker        string  `json:"quoteTicker"`
-	Base               string  `json:"base"`
-	Quote              string  `json:"quote"`
-	QuoteVolume        string  `json:"quoteVolume"`
-	BaseVolume         string  `json:"baseVolume"`
-	Bid                string  `json:"bid"`
-	Ask                string  `json:"ask"`
+	Bid           string    `json:"bid"`
+	Ask           string    `json:"ask"`
+	QuoteVolume   float64   `json:"quoteVolume,string"`
+	BaseVolume    float64   `json:"baseVolume,string"`
+	PercentChange float64   `json:"percentChange,string"` // New
+	Last          float64   `json:"last,string"`
+	Timestamp     time.Time `json:"timestamp"`
+	BaseTicker    string    `json:"baseTicker"`
+	QuoteTicker   string    `json:"quoteTicker"`
+	Pair          string    `json:"pair"`
+	Base          string    `json:"base"`
+	Quote         string    `json:"quote"`
+
+	// Deprecated
 	Avg                string  `json:"avg"`
 	TwoFourQuoteVolume float64 `json:"twoFourQuoteVolume,string"`
 	TwoFourBaseVolume  float64 `json:"twoFourBaseVolume,string"`
 	TwoFourBid         float64 `json:"twoFourBid,string"`
 	TwoFourAsk         float64 `json:"twoFourAsk,string"`
 	TwoFourAvg         float64 `json:"twoFourAvg,string"`
-	Last               float64 `json:"last,string"`
-	Timestamp          int64   `json:"timestamp,string"`
+
 	// External/calculated attributes
-	LastPriceUSD        float64
-	TwoFourBidUSD       float64
-	TwoFourAskUSD       float64
+	LastPriceUSD float64
+	// TwoFourBidUSD       float64
+	// TwoFourAskUSD       float64
 	TwoFourVolumeUSD    float64
 	QuoteTokenSupply    float64
 	QuoteTokenMarketCap float64
@@ -215,19 +224,21 @@ func (ticker *Ticker) Format() string {
 	return fmt.Sprintf(""+
 		"Pair       : %s\n"+DashLine+
 		"Last Price : $%.8f | %.8f %s\n"+DashLine+
-		"24H High   : $%.8f | %.8f %s\n"+DashLine+
-		"24H Low    : $%.8f | %.8f %s\n"+DashLine+
+		// "24H High   : $%.8f | %.8f %s\n"+DashLine+ // deprecated ???
+		// "24H Low    : $%.8f | %.8f %s\n"+DashLine+ // deprecated ???
+		"Changed    : %.2f%%\n"+DashLine+
 		"Supply: %s | Market Cap: $%s\n"+DashLine+
 		"                  24hr Volume\n"+DashLine+
 		"%s| %s| $%s",
 		ticker.Pair,
 		ticker.LastPriceUSD, ticker.Last, base,
-		ticker.TwoFourAskUSD, ticker.TwoFourAsk, base,
-		ticker.TwoFourBidUSD, ticker.TwoFourBid, base,
+		// ticker.TwoFourAskUSD, ticker.TwoFourAsk, base,
+		// ticker.TwoFourBidUSD, ticker.TwoFourBid, base,
+		ticker.PercentChange,
 		FormatNumShort(ticker.QuoteTokenSupply, 4),
 		FormatNumShort(ticker.QuoteTokenMarketCap, 4),
-		FillOrLimit(base+" "+FormatNumShort(ticker.TwoFourBaseVolume, 4), " ", 16),
-		FillOrLimit(ticker.QuoteTicker+" "+FormatNumShort(ticker.TwoFourQuoteVolume, 4), " ", 16),
+		FillOrLimit(base+" "+FormatNumShort(ticker.BaseVolume, 4), " ", 16),
+		FillOrLimit(ticker.QuoteTicker+" "+FormatNumShort(ticker.QuoteVolume, 4), " ", 16),
 		FormatNumShort(ticker.TwoFourVolumeUSD, 4),
 	)
 }
@@ -243,7 +254,7 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 	}
 
 	response := &(http.Response{})
-	response, err = http.Get(dex.PublicURL + "/formatted")
+	response, err = http.Get("https://api.haloplatform.tech/dex/public/pricing/all")
 	if err != nil {
 		return
 	}
@@ -251,8 +262,8 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 	if err != nil {
 		return
 	}
-	tickers := map[string]Ticker{}
-	err = json.Unmarshal(body, &tickers)
+	tickersArr := []Ticker{}
+	err = json.Unmarshal(body, &tickersArr)
 	if err != nil {
 		if response.StatusCode != http.StatusOK {
 			err = fmt.Errorf("API request failed! Status: %s", response.Status)
@@ -262,18 +273,22 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 		}
 		return
 	}
+	tickers := map[string]Ticker{}
+	for _, t := range tickersArr {
+		tickers[t.Pair] = t
+	}
 	dex.CachedTickers = tickers
 	now := time.Now()
 	for key, t := range dex.CachedTickers {
-		// TEMP FIX: switch 24H low and high price appropriately
-		if t.TwoFourAsk < t.TwoFourBid {
-			t.TwoFourAsk, t.TwoFourBid = t.TwoFourBid, t.TwoFourAsk
-		}
+		// // TEMP FIX: switch 24H low and high price appropriately
+		// if t.TwoFourAsk < t.TwoFourBid {
+		// 	t.TwoFourAsk, t.TwoFourBid = t.TwoFourBid, t.TwoFourAsk
+		// }
 		t.LastPriceUSD = t.Last * baseTokenPriceUSD
-		t.TwoFourAskUSD = t.TwoFourAsk * baseTokenPriceUSD
-		t.TwoFourBidUSD = t.TwoFourBid * baseTokenPriceUSD
+		// t.TwoFourAskUSD = t.TwoFourAsk * baseTokenPriceUSD
+		// t.TwoFourBidUSD = t.TwoFourBid * baseTokenPriceUSD
 		t.QuoteTokenSupply = quoteTokenSupply
-		t.TwoFourVolumeUSD = t.TwoFourQuoteVolume * t.LastPriceUSD
+		t.TwoFourVolumeUSD = t.QuoteVolume * t.LastPriceUSD
 		t.QuoteTokenMarketCap = t.QuoteTokenSupply * t.LastPriceUSD
 		t.LastUpdated = now
 		dex.CachedTickers[key] = t
@@ -582,7 +597,6 @@ func (dex *DEX) GetBalances(userAddress string, tickers []string) (balances map[
 		return
 	}
 
-	// TODO: improve GQL query to retrieve multiple token balances with a single query.
 	gqlQueryStr := fmt.Sprintf(`{
 		"operationName": "balances",
 		"query":"query balances(%s) { %s }",
@@ -647,7 +661,7 @@ func (dex *DEX) GetBalancesFormatted(address string, tickers []string, showZeroB
 		if len(tokenBalance) == 0 {
 			tokenBalance = append(tokenBalance, Balance{Balance: 0, Available: 0})
 		}
-		if !showZeroBalance && tokenBalance[0].Balance < 1e-10 {
+		if !showZeroBalance && tokenBalance[0].Balance < 1e-8 {
 			// Balance is zero
 			continue
 		}

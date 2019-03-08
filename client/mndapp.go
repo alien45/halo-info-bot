@@ -122,7 +122,7 @@ func (p Payout) Format() (s string) {
 		FillOrLimit(FormatNum(p.Total, 0), " ", 10),
 		p.Duration,
 		FormatNum(p.HostingFeeUSD, 4),
-		FillOrLimit(FormatNum(p.HostingFeeHalo, 0), " ", 4),
+		FillOrLimit(fmt.Sprint(p.HostingFeeHalo), " ", 4),
 		FillOrLimit(p.Price, " ", 10),
 	)
 	return
