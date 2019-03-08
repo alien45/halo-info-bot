@@ -226,7 +226,7 @@ func (ticker *Ticker) Format() string {
 		"Last Price : $%.8f | %.8f %s\n"+DashLine+
 		// "24H High   : $%.8f | %.8f %s\n"+DashLine+ // deprecated ???
 		// "24H Low    : $%.8f | %.8f %s\n"+DashLine+ // deprecated ???
-		"Changed    : %.2f%%\n"+DashLine+
+		"24 Price Changed : %.2f%%\n"+DashLine+
 		"Supply: %s | Market Cap: $%s\n"+DashLine+
 		"                  24hr Volume\n"+DashLine+
 		"%s| %s| $%s",
