@@ -237,8 +237,8 @@ func (ticker *Ticker) Format() string {
 		ticker.PercentChange,
 		FormatNumShort(ticker.QuoteTokenSupply, 4),
 		FormatNumShort(ticker.QuoteTokenMarketCap, 4),
-		FillOrLimit(base+" "+FormatNumShort(ticker.BaseVolume, 4), " ", 16),
-		FillOrLimit(ticker.QuoteTicker+" "+FormatNumShort(ticker.QuoteVolume, 4), " ", 16),
+		FillOrLimit(base+" "+FormatNumShort(ticker.BaseVolume, 4), " ", 14),
+		FillOrLimit(ticker.QuoteTicker+" "+FormatNumShort(ticker.QuoteVolume, 4), " ", 14),
 		FormatNumShort(ticker.TwoFourVolumeUSD, 4),
 	)
 }
