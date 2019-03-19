@@ -1,13 +1,11 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -19,7 +17,7 @@ type DEX struct {
 	// HaloDEX GraphQL API URL
 	GQLURL string `json:"urlgql"`
 	// HaloDEX public REST API URL
-	PublicURL string `json:"url"`
+	BaseURL string `json:"baseurl"`
 
 	// Smart Contract addresses of the tokens available on the HaloDEX
 	CachedTokens map[string]Token
@@ -42,9 +40,9 @@ type DEX struct {
 // Params:
 // gqlURL string : GraphQL based API URL
 // publicURL string : Public REST API URL
-func (dex *DEX) Init(gqlURL string, publicURL string) {
+func (dex *DEX) Init(gqlURL string, baseURL string) {
 	dex.GQLURL = gqlURL
-	dex.PublicURL = publicURL
+	dex.BaseURL = baseURL
 	dex.CachedTickerExpireMins = 3
 	// Update list of tokens twice everyday
 	dex.CachedTokenExpireMins = 720
@@ -53,16 +51,24 @@ func (dex *DEX) Init(gqlURL string, publicURL string) {
 
 // Trade describes HaloDEX trade item
 type Trade struct {
-	ID            string  `json:"id"`
-	TokenGet      string  `json:"tokenGet"`
-	TokenGive     string  `json:"tokenGive"`
-	AmountGet     float64 `json:"amountGet,string,omitempty"`
-	AmountGive    float64 `json:"amountGive,string"`
-	TimeEpochNano int64   `json:"blockTimestamp,string"`
-	Time          time.Time
-	IsBuy         bool
-	Price         float64
-	Amount        float64
+	ID              int64     `json:"id"`
+	Address         string    `json:"address"`
+	TokenReceivedID int       `json:"tokenReceviedId"`
+	AmountReceived  float64   `json:"amountReceived,string"`
+	TokenSentID     int       `json:"tokenSentId"`
+	AmountSent      float64   `json:"amountSent,string"`
+	TxHash          string    `json:"txHash"`
+	Block           int64     `json:"block"`
+	Time            time.Time `json:"blockTimestamp"`
+	Price           float64   `json:"price,string"`
+	Side            string    `json:"side"` // buy/sell
+	TickerSent      string    `json:"tickerSent"`
+	TickerReceived  string    `json:"tickerReceived"`
+
+	IsBuy        bool // Side == "buy"
+	BasePriceUSD float64
+	PriceUSD     float64
+	Amount       float64
 }
 
 // FormatTrades transforms Trade attributes into formatted signle line string
@@ -72,23 +78,22 @@ func (dex *DEX) FormatTrades(trades []Trade) (s string) {
 	}
 	pricedp, amountdp := 8, 8
 	sign := ""
-	s = "  Price        | Amount       | hh:mm:ss DD-MMM\n" + DashLine
+	s = "  Price      | Amount      | hh:mm:ss DD-MMM\n"
 	for _, trade := range trades {
 		sign = "- "
 		if trade.IsBuy {
 			sign = "+ "
 		}
-		pricedp = 8
-		if trade.Price > 100 {
-			pricedp = 0
-		}
-		amountdp = 8
-		if trade.Amount > 100 {
+		if trade.PriceUSD <= 0.01 {
 			amountdp = 0
 		}
-		s += sign + FillOrLimit(FormatNum(trade.Price, pricedp), " ", 12) + " | "
-		s += FillOrLimit(FormatNum(trade.Amount, amountdp), " ", 12) + " | "
-		s += FormatTimeReverse(trade.Time.UTC()) + "\n" + DashLine
+		if trade.BasePriceUSD <= 0.01 {
+			pricedp = 0
+		}
+		s += DashLine
+		s += sign + FillOrLimit(FormatNum(trade.Price, pricedp), " ", 10) + " | "
+		s += FillOrLimit(FormatNum(trade.Amount, amountdp), " ", 11) + " | "
+		s += FormatTimeReverse(trade.Time.UTC()) + "\n"
 	}
 	return
 }
@@ -96,93 +101,68 @@ func (dex *DEX) FormatTrades(trades []Trade) (s string) {
 // GetTradesWithGQLStr retrieves trades using pre-constructed GraphQL query string
 // TODO: deprecated
 func (dex *DEX) GetTradesWithGQLStr(gqlQueryStr, baseAddr string, dp int64) (trades []Trade, err error) {
-	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
-	if err != nil {
-		return
-	}
-	request.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	response, err := client.Do(request)
-	if err != nil {
-		return
-	}
-	responseBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return
-	}
-	if response.StatusCode != http.StatusOK {
-		err = fmt.Errorf("API request failed! Status: %s", response.Status)
-	}
-	return dex.GetTradesFromResult(responseBytes, baseAddr, dp)
-}
-
-// GetTradesFromResult extracts list of trades from the byte array of the API response
-// TODO: deprecated
-func (dex *DEX) GetTradesFromResult(jsonResultBytes []byte, baseAddr string, dp int64) (trades []Trade, err error) {
-	tradesResult := struct {
-		Data struct {
-			Trades []Trade `json:"trades"`
-		} `json:"data"`
-	}{}
-	err = json.Unmarshal(jsonResultBytes, &tradesResult)
-	if err != nil {
-		return
-	}
-
-	trades = tradesResult.Data.Trades
-	// Process received data to extract IsBuy, Price and Amount
-	divideBy := math.Pow10(int(dp))
-	for i := 0; i < len(trades); i++ {
-		trades[i].IsBuy = strings.ToUpper(trades[i].TokenGet) == strings.ToUpper(baseAddr)
-		trades[i].Time = time.Unix(0, trades[i].TimeEpochNano).UTC()
-		if trades[i].IsBuy {
-			// buy
-			trades[i].Amount = trades[i].AmountGive / divideBy
-			trades[i].Price = trades[i].AmountGet / trades[i].AmountGive
-			continue
-		}
-
-		// sell
-		trades[i].Amount = trades[i].AmountGet / divideBy
-		trades[i].Price = trades[i].AmountGive / trades[i].AmountGet
-	}
-	log.Println("[DEX] [GetTrades] received trades: ", len(trades))
+	err = errors.New("Deprecated")
 	return
-}
-
-// GetTrades function retrieves recent trades from HaloDEX
-// TODO: deprecated
-func (dex *DEX) GetTrades(quoteAddr, baseAddr, limit string, dp int64) (trades []Trade, err error) {
-	//quick and dirty GQL query
-	gqlQueryStr := `{
-		"operationName": "trades",
-		"query": "query trades($baseAddress: String!, $quoteAddress: String!) { ` +
-		`trades(where: {OR: [{tokenGet: $baseAddress, tokenGive: $quoteAddress}, {tokenGet: $quoteAddress, tokenGive: $baseAddress}]}, orderBy: blockTimestamp_DESC, first: ` +
-		limit + `) {id tokenGet tokenGive amountGet amountGive blockTimestamp __typename}}",
-		"variables": {
-			"baseAddress" : "` + baseAddr + `",
-			"quoteAddress" : "` + quoteAddr + `"
-		}
-	}`
-	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr, dp)
 }
 
 // GetTradesByTime retrieves trades since given blockstime
 // TODO: deprecated
 func (dex *DEX) GetTradesByTime(quoteAddr, baseAddr string, blockTime time.Time, dp int64) (trades []Trade, err error) {
-	gqlQueryStr := `{
-		"operationName": "trades",
-		"query": "query trades($baseAddress: String!, $quoteAddress: String!, $timeFrom: String!) ` +
-		`{ trades(where: {OR: [{tokenGive: $baseAddress, tokenGet: $quoteAddress, blockTimestamp_gte: $timeFrom}, ` +
-		`{tokenGive: $quoteAddress, tokenGet: $baseAddress, blockTimestamp_gte: $timeFrom}]}, ` +
-		`orderBy: blockTimestamp_DESC) { id tokenGet amountGet amountGive blockTimestamp timestamp __typename } }",
-		"variables": {
-			"baseAddress" : "` + baseAddr + `",
-			"quoteAddress" : "` + quoteAddr + `",
-			"timeFrom": "000000000000000000000` + fmt.Sprint(blockTime.UTC().UnixNano()) + `"
+	err = errors.New("Deprecated")
+	return
+}
+
+// GetTrades function retrieves recent trades from HaloDEX
+func (dex *DEX) GetTrades(quoteTicker, baseTicker string, limit, pageNo int64, basePriceUSD float64) (trades []Trade, err error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if pageNo <= 0 {
+		pageNo = 1
+	}
+	qURL := fmt.Sprintf(
+		"%s/dex/market/trades/%s/%s?order=DESC&limit=%d&page=%d",
+		dex.BaseURL,
+		quoteTicker,
+		baseTicker,
+		limit,
+		pageNo,
+	)
+	request, err := http.NewRequest("GET", qURL, nil)
+	if err != nil {
+		log.Println("[DEX] [GetTrades] request error", err)
+		return
+	}
+	response, err := (&http.Client{Timeout: time.Second * 30}).Do(request)
+	if err != nil {
+		return
+	}
+
+	result := struct {
+		Total  int64   `json:"total,string"`
+		Trades []Trade `json:"trades"`
+	}{}
+	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		if response.StatusCode != http.StatusOK {
+			err = fmt.Errorf("API request failed! Status: %s", response.Status)
 		}
-	}`
-	return dex.GetTradesWithGQLStr(gqlQueryStr, baseAddr, dp)
+		return
+	}
+	for i, trade := range result.Trades {
+		result.Trades[i].IsBuy = strings.ToLower(trade.Side) == "sell"
+		if basePriceUSD > 0 {
+			result.Trades[i].BasePriceUSD = basePriceUSD
+			result.Trades[i].PriceUSD = trade.Price * trade.BasePriceUSD
+		}
+		if result.Trades[i].IsBuy {
+			result.Trades[i].Amount = trade.AmountReceived
+		} else {
+			result.Trades[i].Amount = trade.AmountSent
+		}
+	}
+	trades = result.Trades
+	return
 }
 
 // Ticker describes a HaloDEX ticker response
@@ -254,7 +234,7 @@ func (dex *DEX) GetTicker(symbolQuote, symbolBase string, baseTokenPriceUSD, quo
 	}
 
 	response := &(http.Response{})
-	response, err = http.Get("https://api.haloplatform.tech/dex/public/pricing/all")
+	response, err = http.Get(dex.BaseURL + "/dex/public/pricing/all")
 	if err != nil {
 		return
 	}
@@ -318,129 +298,33 @@ type Order struct {
 
 // FormatOrders returns orders as a string formatted like a table
 func (dex *DEX) FormatOrders(orders []Order) (s string) {
-	if len(orders) == 0 {
-		return "No orders available"
-	}
-	pricedp, amountdp := 8, 8
-	sign := ""
-	s = "diff\n  Price      | Amount    |Done| hh:mm:ss DD-MMM\n" + DashLine
-	for _, order := range orders {
-		sign = "- "
-		if order.IsBuy {
-			sign = "+ "
-		}
-		pricedp = 8
-		if order.Price > 100 {
-			pricedp = 0
-		}
-		amountdp = 8
-		if order.Amount > 100 {
-			amountdp = 0
-		}
-		percentDP := "0"
-		if order.FilledPercent < 10 {
-			percentDP = "1"
-		}
-		s += sign + FillOrLimit(FormatNum(order.Price, pricedp), " ", 10) + " | "
-		s += FillOrLimit(FormatNum(order.Amount, amountdp), " ", 9) + " |"
-		s += FillOrLimit(fmt.Sprintf("%."+percentDP+"f%%", order.FilledPercent), " ", 4) + "| "
-		s += FormatTimeReverse(order.Time.UTC()) + "\n" + DashLine
-	}
-	return
-}
-
-// GetOrdersGQLStr extracts orders from API response
-func (dex *DEX) GetOrdersGQLStr(gqlQueryStr, quoteAddr string) (orders []Order, err error) {
-	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
-	if err != nil {
-		return
-	}
-	request.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	response, err := client.Do(request)
-	if err != nil {
-		return
-	}
-	ordersResult := map[string]map[string][]Order{}
-	err = json.NewDecoder(response.Body).Decode(&ordersResult)
-	if err != nil {
-		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s", response.Status)
-		}
-		return
-	}
-
-	orders = ordersResult["data"]["orders"]
-	// Process received data to extract IsBuy, Price and Amount
-	for i := 0; i < len(orders); i++ {
-		orders[i].IsBuy = strings.ToUpper(orders[i].TokenGet) == strings.ToUpper(quoteAddr)
-		orders[i].Time = time.Unix(0, orders[i].TimeEpochNano).UTC()
-		orders[i].FilledPercent = orders[i].FilledAmount / orders[i].AmountGet * 100
-		if !orders[i].IsBuy {
-			// buy
-			orders[i].Amount = orders[i].AmountGive / 1e18
-			orders[i].Price = orders[i].AmountGet / orders[i].AmountGive
-			continue
-		}
-
-		// sell
-		orders[i].Amount = orders[i].AmountGet / 1e18
-		orders[i].Price = orders[i].AmountGive / orders[i].AmountGet
-	}
+	s = "deprecated"
 	return
 }
 
 // GetOrders retrieves HaloDEX orders by user address
 func (dex *DEX) GetOrders(quoteAddr, baseAddr, limit, address string) (orders []Order, err error) {
-	gqlQueryStr := `{
-		"operationName": "users",
-		"query": "query users($userAddress: String!, $baseAddress: String!, $quoteAddress: String!) ` +
-		`{orders(where: {user: $userAddress, deleted: false, OR: [{tokenGive: $baseAddress, tokenGet: $quoteAddress}, {tokenGive: $quoteAddress, tokenGet: $baseAddress}]}, ` +
-		`orderBy: blockTimestamp_DESC, first: ` + limit + `) {id amountGet amountGive blockTimestamp contract ` +
-		`expires nonce deleted filled timestamp lastUpdated transactionID tokenGet tokenGive orderHash user __typename}}",
-		"variables": { 
-			"userAddress" : "` + address + `",
-			"baseAddress" : "` + baseAddr + `",
-			"quoteAddress" : "` + quoteAddr + `"
-		  }
-		}`
-	addr := quoteAddr
-	return dex.GetOrdersGQLStr(gqlQueryStr, addr)
+	err = errors.New("deprecated")
+	return
 }
 
 // GetOrderbook retrieves HaloDEX orderbook buy+sell
 func (dex *DEX) GetOrderbook(quoteAddr, baseAddr, limit string, buy bool) (orders []Order, err error) {
-	//OR: [{tokenGive: $baseAddress, tokenGet: $quoteAddress}, {tokenGive: $quoteAddress, tokenGet: $baseAddress}]
-	orderBy := "amountGet_DESC"
-	if !buy {
-		quoteAddr, baseAddr = baseAddr, quoteAddr
-		orderBy = "amountGive_ASC"
-	}
-	gqlQueryStr := `{
-		"operationName": "users",
-		"query": "query users($baseAddress: String!, $quoteAddress: String!) ` +
-		`{orders(where: {deleted: false, available_gt: \"0000000000000000000000000000000000000000\", ` +
-		`tokenGive: $baseAddress, tokenGet: $quoteAddress}, ` +
-		`orderBy: ` + orderBy + `, first: ` + limit + `) {id amountGet amountGive blockTimestamp contract ` +
-		`expires nonce deleted filled timestamp lastUpdated transactionID tokenGet tokenGive orderHash user __typename}}",
-		"variables": { 
-			"baseAddress" : "` + baseAddr + `",
-			"quoteAddress" : "` + quoteAddr + `"
-		  }
-		}`
-	return dex.GetOrdersGQLStr(gqlQueryStr, quoteAddr)
+	err = errors.New("not implemented")
+	return
 }
 
 // Token describes data of available tokens on the HaloDEX
 type Token struct {
 	Number           int64  `json:"number"`
-	Type             string `json:"type"` //"BASE" & "QUOTE"?
+	Type             string `json:"type"` //"BASE" & "QUOTE"
 	BaseChain        string `json:"baseChain"`
-	BaseChainAddress string `json:"baseChainAddress"`
+	BaseChainAddress string `json:"baseChainAddress"` // removed from new API
 	HaloChainAddress string `json:"haloAddress"`
 	Ticker           string `json:"ticker"`
 	Name             string `json:"name"`
 	Decimals         int64  `json:"decimals"` // number of decimals supported
+	Description      string `json:"description"`
 }
 
 // Format formats Token
@@ -451,8 +335,8 @@ func (t *Token) Format() string {
 		"Type         : %s\n"+DashLine+
 		"Decimals     : %d\n"+DashLine+
 		"Base Chain   : %s\n"+DashLine+
-		"Base Address : \n     %s\n"+DashLine+
-		"Halo Address : \n     %s\n"+DashLine,
+		"Base Address : \n  %s\n"+DashLine+
+		"Halo Address : \n  %s\n"+DashLine,
 		t.Name, t.Ticker, t.Type, t.Decimals, t.BaseChain, t.BaseChainAddress, t.HaloChainAddress)
 }
 
@@ -492,23 +376,17 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 		return
 	}
 	log.Println("[DEX] [GetTokens] updating DEX token cache")
-	gqlQueryStr := `{"query":"{ supportedTokens { number type baseChain baseChainAddress haloAddress ticker name decimals }}"}`
-	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
+	request, err := http.NewRequest("GET", dex.BaseURL+"/dex/public/tokens", nil)
 	if err != nil {
 		log.Println("[DEX] [GetTokens] request error", err)
 		return
 	}
-	request.Header.Set("Content-Type", "application/json")
-	response, err := (&http.Client{}).Do(request)
+	response, err := (&http.Client{Timeout: time.Second * 30}).Do(request)
 	if err != nil {
 		return
 	}
 
-	result := struct {
-		Data struct {
-			SupportedTokens []Token `json:"supportedTokens"`
-		} `json:"data"`
-	}{}
+	result := []Token{}
 	err = json.NewDecoder(response.Body).Decode(&result)
 	if err != nil {
 		if response.StatusCode != http.StatusOK {
@@ -517,8 +395,8 @@ func (dex *DEX) GetTokens() (tokens map[string]Token, err error) {
 		return
 	}
 	dex.CachedTokens = map[string]Token{}
-	for i, token := range result.Data.SupportedTokens {
-		dex.CachedTokens[token.Ticker] = result.Data.SupportedTokens[i]
+	for i, token := range result {
+		dex.CachedTokens[token.Ticker] = result[i]
 	}
 	tokens = dex.CachedTokens
 	dex.CachedTokenLastUpdated = time.Now()
@@ -536,11 +414,14 @@ type TokenPair struct {
 	QuoteAddress  string `json:"quoteAddress"`
 	QuoteDecimals int    `json:"quoteDecimals"`
 	QuoteName     string `json:"quoteName"`
+	//pairNumber
+	//baseNumber
+	//quoteNumber
 }
 
 // GetTokenPairs retrieves available token pairs from HaloDEX
 func (dex *DEX) GetTokenPairs() (pairs []TokenPair, err error) {
-	response, err := http.Get(fmt.Sprint(dex.PublicURL, "/available"))
+	response, err := http.Get(dex.BaseURL + "/dex/public/available")
 	if err != nil {
 		return
 	}
@@ -552,88 +433,28 @@ func (dex *DEX) GetTokenPairs() (pairs []TokenPair, err error) {
 }
 
 // Balance ////
+//TODO: deprecated
 type Balance struct {
 	Available float64 `json:"available,string"`
 	Balance   float64 `json:"balance,string"`
 }
 
 // GetBalance returns single balance of the specified address
+//TODO: deprecated
 func (dex *DEX) GetBalance(userAddress string, tickerStr string) (balance float64, err error) {
-	balances, err := dex.GetBalances(userAddress, []string{tickerStr})
-	if err != nil {
-		return
-	}
-	if len(balances) > 0 && len(balances[tickerStr]) > 0 {
-		balance = balances[tickerStr][0].Balance
-	}
+	err = errors.New("Deprecated")
 	return
 }
 
 // GetBalances retrieves DEX account balances for one or more tickers by user address
+//TODO: deprecated
 func (dex *DEX) GetBalances(userAddress string, tickers []string) (balances map[string][]Balance, err error) {
-	// update cache if necessary
-	tokens, err := dex.GetTokens()
-	if err != nil {
-		return
-	}
-	found := false
-	variables := `"userAddress": "` + userAddress + `"`
-	variableDeclarations := "$userAddress: String!"
-	aliases := ""
-	for i := 0; i < len(tickers); i++ {
-		ticker, available := tokens[strings.ToUpper(tickers[i])]
-		if !available {
-			continue
-		}
-		found = true
-		variables += `, "` + ticker.Ticker + `Address": "` + ticker.HaloChainAddress + `"`
-		variableDeclarations += ", $" + ticker.Ticker + "Address: String!"
-		aliases += ticker.Ticker + `: balances(where: {user: $userAddress, token: $` +
-			ticker.Ticker + `Address}, orderBy: blockTimestamp_DESC, first:1) {balance available}`
-
-	}
-	if !found {
-		err = errors.New("Invalid or unsupported token")
-		return
-	}
-
-	gqlQueryStr := fmt.Sprintf(`{
-		"operationName": "balances",
-		"query":"query balances(%s) { %s }",
-		"variables": { %s }
-	}`, variableDeclarations, aliases, variables)
-	request, err := http.NewRequest("POST", dex.GQLURL, bytes.NewBuffer([]byte(gqlQueryStr)))
-	if err != nil {
-		return
-	}
-	request.Header.Set("Content-Type", "application/json")
-	response, err := (&http.Client{}).Do(request)
-	if err != nil {
-		return
-	}
-
-	result := struct {
-		Data map[string][]Balance `json:"data"`
-	}{}
-	err = json.NewDecoder(response.Body).Decode(&result)
-	if err != nil {
-		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s", response.Status)
-		}
-		return
-	}
-	for t := range result.Data {
-		divideBy := math.Pow10(int(tokens[t].Decimals))
-		for k := range result.Data[t] {
-			result.Data[t][k].Available /= divideBy
-			result.Data[t][k].Balance /= divideBy
-		}
-	}
-	balances = result.Data
+	err = errors.New("Deprecated")
 	return
 }
 
 // GetBalancesFormatted returns formatted balances by user address and ticker symbol
+//TODO: deprecated
 func (dex *DEX) GetBalancesFormatted(address string, tickers []string, showZeroBalance bool) (s string, err error) {
 	if len(tickers) == 0 {
 		err = errors.New("Ticker required")

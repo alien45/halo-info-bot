@@ -25,7 +25,7 @@
         "type":          "complex",
         "description":   "Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command.",
         "ispublic":      true,
-        "argumentstext": "<symbol>",
+        "argumentstext": "<ticker>",
         "example":       "!cmc powr, OR, !cmc power ledger, OR, !powr (shorthand for '!cmc powr')"
     },
     "dexbalance": {
@@ -80,7 +80,7 @@
         "type":          "complex",
         "description":   "Recent trades from HaloDEX",
         "ispublic":      true,
-        "argumentstext": "[quote-symbol] [base-symbol] [limit]",
+        "argumentstext": "[quote-ticker] [base-ticker] [limit] [page-no]",
         "example":       "!trades halo eth 10 OR, !trades eth halo OR, !trades"
     },
     "ticker": {

@@ -148,71 +148,78 @@ func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArg
 func cmdDexTrades(discord *discordgo.Session, channelID, debugTag string, cmdArgs, userAddresses []string, numArgs, numAddresses int, command string) {
 	//TODO: add argument for timezone or allow user to save timezone??
 	allTokens, err := dex.GetTokens()
-	address := ""
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve tokens", debugTag) {
 		return
 	}
-	quoteAddr := allTokens["HALO"].HaloChainAddress
-	baseAddr := allTokens["ETH"].HaloChainAddress
-	limit := "10"
-	dp := allTokens["ETH"].Decimals
+	quoteTicker := "halo"
+	baseTicker := "eth"
+	var limit, pageNo int64 = 10, 1
 
 	if numArgs > 0 {
 		// Token symbol supplied
-		quoteToken, _ := allTokens[strings.ToUpper(cmdArgs[0])]
-		quoteAddr = quoteToken.HaloChainAddress
+		quote, _ := allTokens[strings.ToUpper(cmdArgs[0])]
+		quoteTicker = quote.Ticker
 	}
 
 	if numArgs > 1 {
-		baseToken, _ := allTokens[strings.ToUpper(cmdArgs[1])]
-		baseAddr = baseToken.HaloChainAddress
-		dp = baseToken.Decimals
+		base, _ := allTokens[strings.ToUpper(cmdArgs[1])]
+		baseTicker = base.Ticker
 	}
-	if quoteAddr == "" || baseAddr == "" {
+	if quoteTicker == "" || baseTicker == "" {
 		_, err := discordSend(discord, channelID, fmt.Sprint("Invalid pair supplied: ", strings.Join(cmdArgs, "/")), true)
 		logErrorTS(debugTag, err)
 		return
 	}
 	if numArgs > 2 {
-		// if limit argument is set
-		if l, err := strconv.ParseInt(cmdArgs[2], 10, 32); err == nil && l <= 50 {
-			limit = fmt.Sprint(l)
+		// limit argument is set
+		if l, err := strconv.ParseInt(cmdArgs[2], 10, 64); err == nil && l <= 50 {
+			limit = l
 		} else {
 			_, err = discordSend(discord, channelID, "Limit must be a valid number and max 50.", true)
 			logErrorTS(debugTag, err)
 			return
 		}
 	}
+
+	if numArgs > 3 {
+		if p, err := strconv.ParseInt(cmdArgs[3], 10, 64); err == nil {
+			pageNo = p
+		}
+	}
 	dataStr := ""
 	if command == "orders" {
-		if numArgs > 3 {
-			address = strings.ToLower(cmdArgs[3])
-		}
-		if !strings.HasPrefix(address, "0x") {
-			// Invalid address supplied
-			i, err := strconv.ParseInt(address, 10, 64)
-			if err != nil {
-				// Use first address from user's addressbook, if available
-				i = 1
-			}
-			if numAddresses == 0 || i < 1 || numAddresses < int(i) {
-				// No/invalid address supplied and user has no address saved
-				discordSend(discord, channelID, "Valid address or address book item number required.", true)
-				return
-			}
-			i--
-			address = userAddresses[i]
-		}
+		// if numArgs > 3 {
+		// 	address = strings.ToLower(cmdArgs[3])
+		// }
+		// if !strings.HasPrefix(address, "0x") {
+		// 	// Invalid address supplied
+		// 	i, err := strconv.ParseInt(address, 10, 64)
+		// 	if err != nil {
+		// 		// Use first address from user's addressbook, if available
+		// 		i = 1
+		// 	}
+		// 	if numAddresses == 0 || i < 1 || numAddresses < int(i) {
+		// 		// No/invalid address supplied and user has no address saved
+		// 		discordSend(discord, channelID, "Valid address or address book item number required.", true)
+		// 		return
+		// 	}
+		// 	i--
+		// 	address = userAddresses[i]
+		// }
 
-		orders, err := dex.GetOrders(quoteAddr, baseAddr, limit, address)
-		logErrorTS(debugTag, err)
-		dataStr = dex.FormatOrders(orders)
+		// orders, err := dex.GetOrders(quoteAddr, baseAddr, limit, address)
+		// logErrorTS(debugTag, err)
+		// dataStr = dex.FormatOrders(orders)
 	} else if command == "orderbook" {
 		// orderbook, err := dex.GetOrderbook(quoteAddr, baseAddr, limit, true)
 		// logErrorTS(debugTag, err)
 		// dataStr = dex.FormatOrders(orderbook)
 	} else {
-		trades, err := dex.GetTrades(quoteAddr, baseAddr, limit, dp)
+		var basePriceUSD float64
+		if baseCMC, err := cmc.GetTicker(baseTicker); err == nil {
+			basePriceUSD = baseCMC.Quote["USD"].Price
+		}
+		trades, err := dex.GetTrades(quoteTicker, baseTicker, limit, pageNo, basePriceUSD)
 		logErrorTS(debugTag, err)
 		dataStr = "diff\n" + dex.FormatTrades(trades)
 	}

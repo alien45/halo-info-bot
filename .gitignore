@@ -17,9 +17,11 @@ watch.sh
 
 # Log and configuration files
 *.log
+.vscode
 config.json
 discord.json
 payout-log.json
 cmc.json
 data/
 alert-receiver/
+client/halodex
