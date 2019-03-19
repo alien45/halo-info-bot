@@ -28,13 +28,6 @@
         "argumentstext": "<ticker>",
         "example":       "!cmc powr, OR, !cmc power ledger, OR, !powr (shorthand for '!cmc powr')"
     },
-    "dexbalance": {
-        "type":          "complex",
-        "description":   "Shows user's HaloDEX balances. USE YOUR HALO CHAIN ADDRESS FOR ALL TOKEN BALANCES WITHIN DEX.",
-        "ispublic":      false,
-        "argumentstext": "<address> [ticker1] [ticker2...]",
-        "example":       "!dexbalance 0x123... OR, !dexbalance 0x123... ETH"
-    },
     "guildcmd": {
         "type":          "complex",
         "description":   "Add guild-specific custom commands. Supported actions: add, remove, update.\nAdding a command name same as built-in commands will override it. To remove an existing command from the guild add the intended command with empty message. Example: !guildcmd add balance.\nTo restore deleted built-in command: !guildcmd remove balance",
@@ -68,13 +61,6 @@
         "ispublic":      false,
         "argumentstext": "[{full}] <address> [address2] [address3....]",
         "example":       "!nodes 0x1234 OR, !nodes OR, !nodes full 0x123 0x324 0x234"
-    },
-    "orders": {
-        "type":          "complex",
-        "description":   "Get HaloDEX orders by user address. If no address supplied, will use user's first address book item when available.",
-        "ispublic":      false,
-        "argumentstext": "[quote-ticker] [base-ticker] [limit] [address]",
-        "example":       "!orders halo eth 10 0x1234 OR, !orders OR, !orders vet eth"
     },
     "trades": {
         "type":          "complex",
