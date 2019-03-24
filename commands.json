@@ -1,86 +1,85 @@
 {
-
-    "address": {
-        "type":          "complex",
-        "description":   "Add, remove and get list of saved addresses.",
-        "ispublic":      false,
-        "argumentstext": "[action] [address1] [address2...]",
-        "example":       "!address OR, !address add 0x1234 OR, !address remove 0x1234"
-    },
-    "alert": {
-        "type":          "complex",
-        "description":   "Enable/disable automatic alerts. Alert types: payout. Actions:on, off, status, send, update. Only root user can use 'send' to trigger payout alert manually.",
-        "ispublic":      true,
-        "argumentstext": "<type> [action]",
-        "example":       "!alert payout on OR, !alert payout status OR, !alert payout send 99999 99 OR, !alert payout update 10000 100"
-    },
-    "balance": {
-        "type": "complex",
-        "description": "Check your account balance. Supported addresses/chains: BTC, Dash, ETH, Halo and  LTC. Address keywords: 'reward-pool', 'charity', 'h-eth', 'dex-halo'. If no address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
-        "ispublic":      true,
-        "argumentstext": "<address> [ticker]",
-        "example":       "!balance 0x1234567890abcdef OR, !balance dex-halo OR, !balance OR, !balance 2 (for 2nd item in the address book)"
-    },
-    "cmc": {
-        "type":          "complex",
-        "description":   "Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command.",
-        "ispublic":      true,
-        "argumentstext": "<ticker>",
-        "example":       "!cmc powr, OR, !cmc power ledger, OR, !powr (shorthand for '!cmc powr')"
-    },
-    "guildcmd": {
-        "type":          "complex",
-        "description":   "Add guild-specific custom commands. Supported actions: add, remove, update.\nAdding a command name same as built-in commands will override it. To remove an existing command from the guild add the intended command with empty message. Example: !guildcmd add balance.\nTo restore deleted built-in command: !guildcmd remove balance",
-        "ispublic":      true,
-        "isadminonly":     true,
-        "argumentstext": "<action> <command-name> [message]",
-        "example":       "!guildcmd add sayhello Hello Discord OR, !guildcmd remove sayhello"
-    },
-    "halo": {
-        "type":        "complex",
-        "description": "Get a digest of information about Halo including ticker info from DEX, reward pool and recent trades.",
-        "ispublic":    true
-    },
-    "help": {
-        "type": "complex",
-        "description": "Prints list of commands and supported arguments. If argument 'command' is provided will display detailed information about the command along with examples.",
-        "argumentstext": "[command-name]",
-        "ispublic":      true,
-        "example":       "!help OR, !help balance"
-    },
-    "mn": {
-        "type":        "complex",
-        "argumentstext": "[collateral|nodes|payout|pool|roi]",
-        "description": "Get information about masternodes, payouts etc.",
-        "ispublic":    true,
-        "example": "!mn OR, !mn payout OR, !mn roi OR, !mn collateral"
-    },
-    "nodes": {
-        "type":          "complex",
-        "description":   "Lists masternodes owned by a specific address. If no address supplied, will use user's first address book item when available.",
-        "ispublic":      false,
-        "argumentstext": "[{full}] <address> [address2] [address3....]",
-        "example":       "!nodes 0x1234 OR, !nodes OR, !nodes full 0x123 0x324 0x234"
-    },
-    "trades": {
-        "type":          "complex",
-        "description":   "Recent trades from HaloDEX",
-        "ispublic":      true,
-        "argumentstext": "[quote-ticker] [base-ticker] [limit] [page-no]",
-        "example":       "!trades halo eth 10 OR, !trades eth halo OR, !trades"
-    },
-    "ticker": {
-        "type":          "complex",
-        "description":   "Get ticker information from HaloDEX.",
-        "ispublic":      true,
-        "argumentstext": "[quote-ticker] [base-ticker]",
-        "example":       "!ticker OR, !ticker vet OR, !ticker dbet eth"
-    },
-    "tokens": {
-        "type":          "complex",
-        "description":   "Lists all tokens supported on HaloDEX",
-        "ispublic":      true,
-        "argumentstext": "[ticker]",
-        "example":       "!tokens OR, !tokens halo"
-    }
+  "address": {
+    "type": "complex",
+    "description": "Add, remove and get list of saved addresses.",
+    "ispublic": false,
+    "argumentstext": "[action] [address1] [address2...]",
+    "example": "!address OR, !address add 0x1234 OR, !address remove 0x1234"
+  },
+  "alert": {
+    "type": "complex",
+    "description": "Enable/disable automatic alerts. Alert types: payout. Actions:on, off, status, send, update, hostingfee. Only root user can use 'send' to trigger payout alert manually.",
+    "ispublic": true,
+    "argumentstext": "<type> [action]",
+    "example": "!alert payout on OR, !alert payout status OR, !alert payout send 99999 99 OR, !alert payout update 10000 100 OR, !alert payout hostingfee 19.99"
+  },
+  "balance": {
+    "type": "complex",
+    "description": "Check your account balance. Supported addresses/chains: BTC, Dash, ETH, Halo and  LTC. Address keywords: 'reward-pool', 'charity', 'h-eth', 'dex-halo'. If no address supplied, the first item of user's address book will be used. To get balance of a specific item from address book just type the index number of the address.",
+    "ispublic": true,
+    "argumentstext": "<address> [ticker]",
+    "example": "!balance 0x1234567890abcdef OR, !balance dex-halo OR, !balance OR, !balance 2 (for 2nd item in the address book)"
+  },
+  "cmc": {
+    "type": "complex",
+    "description": "Fetch CoinMarketCap ticker information. Alternatively, use the ticker itself as command.",
+    "ispublic": true,
+    "argumentstext": "<ticker>",
+    "example": "!cmc powr, OR, !cmc power ledger, OR, !powr (shorthand for '!cmc powr')"
+  },
+  "guildcmd": {
+    "type": "complex",
+    "description": "Add guild-specific custom commands. Supported actions: add, remove, update.\nAdding a command name same as built-in commands will override it. To remove an existing command from the guild add the intended command with empty message. Example: !guildcmd add balance.\nTo restore deleted built-in command: !guildcmd remove balance",
+    "ispublic": true,
+    "isadminonly": true,
+    "argumentstext": "<action> <command-name> [message]",
+    "example": "!guildcmd add sayhello Hello Discord OR, !guildcmd remove sayhello"
+  },
+  "halo": {
+    "type": "complex",
+    "description": "Get a digest of information about Halo including ticker info from DEX, reward pool and recent trades.",
+    "ispublic": true
+  },
+  "help": {
+    "type": "complex",
+    "description": "Prints list of commands and supported arguments. If argument 'command' is provided will display detailed information about the command along with examples.",
+    "argumentstext": "[command-name]",
+    "ispublic": true,
+    "example": "!help OR, !help balance"
+  },
+  "mn": {
+    "type": "complex",
+    "argumentstext": "[collateral|nodes|payout|pool|roi]",
+    "description": "Get information about masternodes, payouts etc.",
+    "ispublic": true,
+    "example": "!mn OR, !mn payout OR, !mn roi OR, !mn collateral"
+  },
+  "nodes": {
+    "type": "complex",
+    "description": "Lists masternodes owned by a specific address. If no address supplied, will use user's first address book item when available.",
+    "ispublic": false,
+    "argumentstext": "[{full}] <address> [address2] [address3....]",
+    "example": "!nodes 0x1234 OR, !nodes OR, !nodes full 0x123 0x324 0x234"
+  },
+  "trades": {
+    "type": "complex",
+    "description": "Recent trades from HaloDEX",
+    "ispublic": true,
+    "argumentstext": "[quote-ticker] [base-ticker] [limit] [page-no]",
+    "example": "!trades halo eth 10 OR, !trades eth halo OR, !trades"
+  },
+  "ticker": {
+    "type": "complex",
+    "description": "Get ticker information from HaloDEX.",
+    "ispublic": true,
+    "argumentstext": "[quote-ticker] [base-ticker]",
+    "example": "!ticker OR, !ticker vet OR, !ticker dbet eth"
+  },
+  "tokens": {
+    "type": "complex",
+    "description": "Lists all tokens supported on HaloDEX",
+    "ispublic": true,
+    "argumentstext": "[ticker]",
+    "example": "!tokens OR, !tokens halo"
+  }
 }

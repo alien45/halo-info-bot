@@ -68,6 +68,7 @@ type Config struct {
 
 // DiscordData stores Discord user preferences and other data
 type DiscordData struct {
+	HostingFeeUSD   float64           `json:"hostingfeeusd"`
 	LastPayout      client.Payout     `json:"lastpayout"`
 	AddressKeywords map[string]string `json:"addresskeywords"`
 	Info            map[string]string `json:"info"`
@@ -116,6 +117,9 @@ func main() {
 	explorer = conf.Client.Explorer
 	conf.Client.MNDApp.LastPayout = data.LastPayout
 	mndapp = conf.Client.MNDApp
+	if data.HostingFeeUSD > 0 {
+		mndapp.HostingFeeUSD = data.HostingFeeUSD
+	}
 
 	// Connect to discord as a bot
 	discord, err := discordgo.New("Bot " + conf.Client.DiscordBot.Token)

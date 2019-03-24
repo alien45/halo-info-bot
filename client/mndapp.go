@@ -78,18 +78,19 @@ type PayoutTX struct {
 
 // Payout stores data of a given payout
 type Payout struct {
-	Minted         float64            `json:"minted"`
-	Fees           float64            `json:"fees"`
-	Total          float64            `json:"total"`
-	Duration       string             `json:"duration"` // duration string with "hh:mm" format
-	Time           time.Time          `json:"time"`
-	Tiers          map[string]float64 `json:"tiers,,omitempty"` // rewards/mn for each tier
-	TierNodes      map[string]float64 `json:"tiernodes"`
-	HostingFeeUSD  float64            `json:"hostingfeeusd"`
-	HostingFeeHalo float64            `json:"hostingfeehalo"`
-	Price          float64            `json:"price"` // Price US$/Halo
-	BlockNumber    int64              `json:"blocknumber"`
-	AlertData      AlertData          `json:"alertdata"`
+	Minted             float64            `json:"minted"`
+	Fees               float64            `json:"fees"`
+	Total              float64            `json:"total"`
+	Duration           string             `json:"duration"` // duration string with "hh:mm" format
+	Time               time.Time          `json:"time"`
+	Tiers              map[string]float64 `json:"tiers,,omitempty"` // rewards/mn for each tier
+	TierNodes          map[string]float64 `json:"tiernodes"`
+	HostingFeeUSD      float64            `json:"hostingfeeusd"`
+	HostingFeeHalo     float64            `json:"hostingfeehalo"`
+	HostingFeePerMonth float64            `json:"hostingfeepermonth"`
+	Price              float64            `json:"price"` // Price US$/Halo
+	BlockNumber        int64              `json:"blocknumber"`
+	AlertData          AlertData          `json:"alertdata"`
 }
 
 // AlertData payout alert data
@@ -113,16 +114,18 @@ type Message struct {
 func (p Payout) Format() (s string) {
 	s = fmt.Sprintf(""+
 		"Time   : %s UTC (approx.)\n"+DashLine+
-		"Minted : %s    | Fees     : %s\n"+DashLine+
+		"Minted : %s    | S.Fees : %s\n"+DashLine+
 		"Total  : %s    | Duration : %s\n"+DashLine+
-		"Hosting Fee: $%s (%sH) @ $%s/H\n",
+		"Hosting Fee: $%s (%sH) | $%s/month\n"+DashLine+
+		"Halo Price Used: $%s\n",
 		FillOrLimit(p.Time.UTC().String(), " ", 16),
 		FillOrLimit(FormatNum(p.Minted, 0), " ", 10),
 		FillOrLimit(FormatNum(p.Fees, 0), " ", 10),
 		FillOrLimit(FormatNum(p.Total, 0), " ", 10),
 		p.Duration,
 		FormatNum(p.HostingFeeUSD, 4),
-		FillOrLimit(fmt.Sprint(p.HostingFeeHalo), " ", 4),
+		FormatNum(p.HostingFeeHalo, 0),
+		FormatNum(p.HostingFeePerMonth, 2),
 		FillOrLimit(p.Price, " ", 10),
 	)
 	return
@@ -131,17 +134,17 @@ func (p Payout) Format() (s string) {
 // FormatAlert returns payout data as string for payout alert
 func (p Payout) FormatAlert(blockURL string) (s string) {
 	s = fmt.Sprintf("Delicious payout is served!```js\n%s"+DashLine+
-		"         Tier 1  | Tier 2  | Tier 3  | Tier 4\n"+DashLine+
+		"         Tier 1 | Tier 2 | Tier 3 | Tier 4\n"+DashLine+
 		"Rewards: %s | %s | %s | %s\n"+DashLine+
 		"Nodes  : %s | %s | %s | %s\n```",
 		p.Format(),
-		FillOrLimit(FormatNum(p.Tiers["t1"]-p.HostingFeeHalo, 0), " ", 7),
-		FillOrLimit(FormatNum(p.Tiers["t2"]-p.HostingFeeHalo, 0), " ", 7),
-		FillOrLimit(FormatNum(p.Tiers["t3"]-p.HostingFeeHalo, 0), " ", 7),
+		FillOrLimit(FormatNum(p.Tiers["t1"]-p.HostingFeeHalo, 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t2"]-p.HostingFeeHalo, 0), " ", 6),
+		FillOrLimit(FormatNum(p.Tiers["t3"]-p.HostingFeeHalo, 0), " ", 6),
 		FillOrLimit(FormatNum(p.Tiers["t4"]-p.HostingFeeHalo, 0), " ", 7),
-		FillOrLimit(FormatNum(p.TierNodes["t1"], 0), " ", 7),
-		FillOrLimit(FormatNum(p.TierNodes["t2"], 0), " ", 7),
-		FillOrLimit(FormatNum(p.TierNodes["t3"], 0), " ", 7),
+		FillOrLimit(FormatNum(p.TierNodes["t1"], 0), " ", 6),
+		FillOrLimit(FormatNum(p.TierNodes["t2"], 0), " ", 6),
+		FillOrLimit(FormatNum(p.TierNodes["t3"], 0), " ", 6),
 		FillOrLimit(FormatNum(p.TierNodes["t4"], 0), " ", 7),
 	)
 	if p.BlockNumber > 0 {

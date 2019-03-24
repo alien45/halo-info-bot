@@ -27,9 +27,10 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 	alertType := ""
 	exists := false
 	saveData := false
+	hostingFeeUSD := 0.00
 	var err error
 	if numArgs == 0 {
-		txt = "Alert type required. Supported types: payout"
+		txt = "Alert type required.\nSupported types: payout"
 		goto AlertMessage
 	}
 	alertType = strings.ToLower(cmdArgs[0])
@@ -41,6 +42,24 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 	_, exists = data.Alerts.Payout[channelID]
 
 	switch alertType + " " + action {
+	case "payout hostingfee":
+		if numArgs < 3 {
+			txt = fmt.Sprintf("Hosting fee is set to $%.2f", mndapp.HostingFeeUSD)
+			goto AlertMessage
+		}
+		hostingFeeUSD, err = strconv.ParseFloat(strings.Join(strings.Split(cmdArgs[2], "$"), ""), 64)
+		if err != nil {
+			txt = "Please enter a valid number."
+			goto AlertMessage
+		}
+		data.HostingFeeUSD = hostingFeeUSD
+		mndapp.HostingFeeUSD = hostingFeeUSD
+		err = saveDataFile()
+		txt = fmt.Sprintf("Hosting fee changed to $%.2f", hostingFeeUSD)
+		if err != nil {
+			txt = "Failed to save hosting fee. Please try again later."
+		}
+		break
 	case "payout send":
 		if !isRoot {
 			return
@@ -93,7 +112,7 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 		data.LastPayout.Tiers["t2"] = t2r
 		data.LastPayout.Tiers["t3"] = t3r
 		data.LastPayout.Tiers["t4"] = t4r
-
+		data.LastPayout.HostingFeePerMonth = mndapp.HostingFeeUSD
 		data.LastPayout.HostingFeeHalo,
 			data.LastPayout.HostingFeeUSD,
 			data.LastPayout.Price, _ = getHostingFee(duration)
@@ -215,6 +234,7 @@ func checkPayout(discord *discordgo.Session) {
 	p.TierNodes["t2"] = t2
 	p.TierNodes["t3"] = t3
 	p.TierNodes["t4"] = t4
+	p.HostingFeePerMonth = mndapp.HostingFeeUSD
 	p.HostingFeeHalo, p.HostingFeeUSD, p.Price, _ = getHostingFee(p.Duration)
 	// Log
 	logTS(debugTag, fmt.Sprintf("Total: %.0f | Minted: %.0f | Fees: %.0f | Time: %s | "+
@@ -265,6 +285,7 @@ func triggerPayoutsAlert(discord *discordgo.Session, userChannelID string, minte
 	p.TierNodes["t2"] = t2
 	p.TierNodes["t3"] = t3
 	p.TierNodes["t4"] = t4
+	p.HostingFeePerMonth = mndapp.HostingFeeUSD
 	p.HostingFeeHalo, p.HostingFeeUSD, p.Price, _ = getHostingFee(p.Duration)
 	if payoutTXReceived {
 		p.BlockNumber = payoutTX.BlockNumber
