@@ -47,6 +47,10 @@ func cmdAlert(discord *discordgo.Session, guildID, channelID, userID, username, 
 			txt = fmt.Sprintf("Hosting fee is set to $%.2f", mndapp.HostingFeeUSD)
 			goto AlertMessage
 		}
+		if !isRoot {
+			txt = "You are not authorized to change hosting fee"
+			goto AlertMessage
+		}
 		hostingFeeUSD, err = strconv.ParseFloat(strings.Join(strings.Split(cmdArgs[2], "$"), ""), 64)
 		if err != nil {
 			txt = "Please enter a valid number."
