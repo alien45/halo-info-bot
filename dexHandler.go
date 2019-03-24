@@ -123,17 +123,14 @@ func cmdDexTicker(discord *discordgo.Session, channelID, debugTag string, cmdArg
 		return
 	}
 	basePriceUSD := cmcTicker.Quote["USD"].Price
-	quoteSupply := float64(0)
+	var quoteSupply float64
 
-	if symbolQuote == "HALO" {
-		// Because Halo isn't yet listed on CMC
-		quoteSupply, err = explorer.GetHaloSupply()
-		logErrorTS(debugTag, err)
-	} else {
-		quoteTicker, err := cmc.GetTicker(symbolQuote)
-		logErrorTS(debugTag, err)
-		quoteSupply = quoteTicker.TotalSupply
+	quoteTicker, err := cmc.GetTicker(symbolQuote)
+	logErrorTS(debugTag, err)
+	if commandErrorIf(err, discord, channelID, "Failed to retrieve quote ticker", debugTag) {
+		return
 	}
+	quoteSupply = quoteTicker.TotalSupply
 
 	ticker, err := dex.GetTicker(symbolQuote, symbolBase, basePriceUSD, quoteSupply)
 	if commandErrorIf(err, discord, channelID, "Failed to retrieve ticker", debugTag) {

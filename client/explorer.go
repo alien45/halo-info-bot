@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,32 +30,34 @@ func (explorer *Explorer) Init(baseURL, mainnetGQL string) {
 
 // GetHaloSupply retrieves current total supply of Halo
 func (explorer Explorer) GetHaloSupply() (supply float64, err error) {
-	// Use cache if available and not expired
-	if explorer.CachedTotalSupply != 0 && time.Now().Sub(explorer.CacheLastUpdated).Minutes() < explorer.CacheExpireMins {
-		log.Println("[Explorer] [GetHaloSupply] Using cached Halo supply")
-		supply = explorer.CachedTotalSupply
-		return
-	}
+	err = errors.New("Deprecated")
+	return
+	// // Use cache if available and not expired
+	// if explorer.CachedTotalSupply != 0 && time.Now().Sub(explorer.CacheLastUpdated).Minutes() < explorer.CacheExpireMins {
+	// 	log.Println("[Explorer] [GetHaloSupply] Using cached Halo supply")
+	// 	supply = explorer.CachedTotalSupply
+	// 	return
+	// }
 
-	// Update cache
-	log.Println("[Explorer] [GetHaloSupply] Retrieving total Halo supply ")
-	response, err := http.Get(explorer.BaseURL + "/coin/total")
-	if err != nil {
-		return
-	}
-	result := map[string]float64{}
-	err = json.NewDecoder(response.Body).Decode(&result)
-	if err != nil {
-		if response.StatusCode != http.StatusOK {
-			err = fmt.Errorf("API request failed! Status: %s", response.Status)
-		}
-	}
-	supply, _ = result["total"]
+	// // Update cache
+	// log.Println("[Explorer] [GetHaloSupply] Retrieving total Halo supply ")
+	// response, err := http.Get(explorer.BaseURL + "/coin/total")
+	// if err != nil {
+	// 	return
+	// }
+	// result := map[string]float64{}
+	// err = json.NewDecoder(response.Body).Decode(&result)
+	// if err != nil {
+	// 	if response.StatusCode != http.StatusOK {
+	// 		err = fmt.Errorf("API request failed! Status: %s", response.Status)
+	// 	}
+	// }
+	// supply, _ = result["total"]
 
-	// TODO: TEMP FIX until Halo team fixes explorer API
-	if supply < 40*1e7 {
-		supply *= 800
-	}
+	// // TODO: TEMP FIX until Halo team fixes explorer API
+	// if supply < 40*1e7 {
+	// 	supply *= 800
+	// }
 	return
 }
 

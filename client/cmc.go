@@ -33,7 +33,6 @@ func (cmc *CMC) Init(baseURL, apiKey string) {
 
 // GetTicker retrieves tickers from CoinMarketCap.com. Caching enabled.
 func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
-	tickerURL := cmc.BaseURL + "/cryptocurrency/listings/latest?start=1&limit=5000&convert=USD"
 
 	// Use cache if available and not expired
 	if cmc.DailyCreditUsed == cmc.DailyCreditLimit || (len(cmc.CachedTickers) > 0 &&
@@ -48,6 +47,7 @@ func (cmc *CMC) GetTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 	}
 
 	log.Println("[CMC] [GetTicker] Updating CMC tickers cache")
+	tickerURL := cmc.BaseURL + "/cryptocurrency/listings/latest?start=1&limit=5000&convert=USD"
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", tickerURL, nil)
 	if err != nil {
@@ -108,7 +108,7 @@ func (cmc *CMC) FindTicker(nameOrSymbol string) (ticker CMCTicker, err error) {
 			return
 		}
 	}
-	err = errors.New("CMC ticker not found")
+	err = errors.New("CMC ticker not found: " + nameOrSymbol)
 	return
 }
 
